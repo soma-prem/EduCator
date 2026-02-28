@@ -1,4 +1,4 @@
-###Week 1-2: Foundation & Quick Win
+## Week 1-2: Foundation & Quick Win
 
 ##Educational Content Generator AI Agent Development Project – Dual Track Version
 
