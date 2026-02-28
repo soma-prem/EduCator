@@ -1,4 +1,8 @@
-# EduCator
+#Week 1-2: Foundation & Quick Win
+
+#Educational Content Generator AI Agent Development Project – Dual Track Version
+
+#EduCator
 
 EduCator is a study assistant that turns uploaded content into MCQs, flashcards, and a concise summary, with optional text‑to‑speech and audio generation.
 
