@@ -63,8 +63,6 @@ function UploadPage({ user }) {
   const [inputMode, setInputMode] = useState("");
   const [mcqs, setMcqs] = useState([]);
   const [mcqSetId, setMcqSetId] = useState("");
-  const [mcqVerdicts, setMcqVerdicts] = useState({});
-  const [verifyingAnswers, setVerifyingAnswers] = useState({});
   const [flashcards, setFlashcards] = useState([]);
   const [fillBlanks, setFillBlanks] = useState([]);
   const [trueFalse, setTrueFalse] = useState([]);
@@ -72,7 +70,6 @@ function UploadPage({ user }) {
   const [summary, setSummary] = useState("");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [ttsLanguage] = useState("en");
-  const [lastSource, setLastSource] = useState(null);
   const [ragQuestion, setRagQuestion] = useState("");
   const [ragAnswer, setRagAnswer] = useState("");
   const [ragLoading, setRagLoading] = useState(false);
@@ -97,9 +94,6 @@ function UploadPage({ user }) {
   const [flashPayload, setFlashPayload] = useState(null);
   const [fillBlanksPayload, setFillBlanksPayload] = useState(null);
   const [trueFalsePayload, setTrueFalsePayload] = useState(null);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState("");
   const handleOpenYoutubeGuidePage = () => {
     if (!hasSource) {
       toast.info("Add a source first");
@@ -153,8 +147,6 @@ function UploadPage({ user }) {
     setTrueFalse([]);
     setSummary("");
     setMcqSetId("");
-    setMcqVerdicts({});
-    setVerifyingAnswers({});
     setMcqReady(false);
     setFlashReady(false);
     setFillBlanksReady(false);
@@ -163,7 +155,6 @@ function UploadPage({ user }) {
     setFlashPayload(null);
     setFillBlanksPayload(null);
     setTrueFalsePayload(null);
-    setAudioUrl("");
   };
 
   useEffect(() => {
@@ -199,7 +190,6 @@ function UploadPage({ user }) {
   const hasText = textValue.trim().length > 0;
   const hasFile = Boolean(uploadFile) || Boolean(storedFileId);
   const canGenerate = hasText || hasFile;
-  const hasResults = mcqs.length > 0 || flashcards.length > 0 || fillBlanks.length > 0 || trueFalse.length > 0;
   const hasSummary = summary.trim().length > 0;
   const hasSource =
     sources.length > 0 ||
@@ -370,9 +360,6 @@ function UploadPage({ user }) {
       localStorage.removeItem("educator_exam_mock");
     } catch (_error) {}
     sessionStorage.removeItem("educator_exam_mock");
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-    }
     if (voiceAnswerAudioUrl) {
       URL.revokeObjectURL(voiceAnswerAudioUrl);
     }
@@ -381,7 +368,6 @@ function UploadPage({ user }) {
         recognizer.stop();
       } catch (_error) {}
     }
-    setAudioUrl("");
     setTextValue("");
     setUploadFile(null);
     setStoredFileId("");
@@ -397,7 +383,6 @@ function UploadPage({ user }) {
     setVoiceAnswerAudioUrl("");
     setVoiceLoading(false);
     setListening(false);
-    setLastSource(null);
     setMcqGenerating(false);
     setFlashGenerating(false);
     setFillBlanksGenerating(false);
@@ -412,14 +397,11 @@ function UploadPage({ user }) {
     setTrueFalsePayload(null);
     setMcqs([]);
     setMcqSetId("");
-    setMcqVerdicts({});
-    setVerifyingAnswers({});
     setFlashcards([]);
     setFillBlanks([]);
     setTrueFalse([]);
     setSummary("");
     setSummaryGenerating(false);
-    setAudioLoading(false);
     setLoadingStudySet(false);
   };
 
@@ -624,11 +606,6 @@ function UploadPage({ user }) {
       persistSourcesSnapshot(nextList);
       return nextList;
     });
-    setLastSource(
-      nextSource.mode === "file"
-        ? { mode: "file", file: nextSource.file, fileId: nextSource.fileId }
-        : { mode: "text", text: nextSource.text }
-    );
   
     setMcqReady(false);
     setFlashReady(false);
@@ -709,12 +686,10 @@ function UploadPage({ user }) {
         if (primary?.mode === "text" && primary?.text) {
           setTextValue(String(primary.text));
           setInputMode("text");
-          setLastSource({ mode: "text", text: String(primary.text) });
         } else if (primary?.mode === "file" && primary?.fileId) {
           setInputMode("file");
           setStoredFileId(String(primary.fileId));
           setStoredFileName(String(primary.label || "Uploaded file"));
-          setLastSource({ mode: "file", fileId: String(primary.fileId), label: String(primary.label || "Uploaded file") });
         }
       }
       if (!sources.length && !hasSavedSources) {
@@ -724,12 +699,10 @@ function UploadPage({ user }) {
         if (savedText) {
           setTextValue(savedText);
           setInputMode("text");
-          setLastSource({ mode: "text", text: savedText });
         } else if (savedFileId) {
           setInputMode("file");
           setStoredFileId(savedFileId);
           setStoredFileName(savedFileName || "Uploaded file");
-          setLastSource({ mode: "file", fileId: savedFileId, label: savedFileName || "Uploaded file" });
         }
       }
       const restoredMcqs = Array.isArray(saved?.mcqs) ? saved.mcqs : [];
@@ -815,7 +788,6 @@ function UploadPage({ user }) {
       if (!hasSavedSources && saved?.sourceType === "text" && saved?.sourceText) {
         setTextValue(String(saved.sourceText));
         setInputMode("text");
-        setLastSource({ mode: "text", text: String(saved.sourceText) });
         if (!sources.length) {
           setSources([
             {
@@ -831,11 +803,6 @@ function UploadPage({ user }) {
         setInputMode("file");
         setStoredFileId(String(saved.sourceFileId));
         setStoredFileName(String(saved.sourceFileName || saved.sourcePreview || "Uploaded file"));
-        setLastSource({
-          mode: "file",
-          fileId: String(saved.sourceFileId),
-          label: String(saved.sourceFileName || saved.sourcePreview || "Uploaded file"),
-        });
         if (!sources.length) {
           setSources([
             {
@@ -1160,7 +1127,6 @@ function UploadPage({ user }) {
         setVoiceAnswer("");
         setVoiceAnswerAudioUrl("");
         setListening(false);
-        setLastSource(null);
         clearStudySet();
         try {
           localStorage.removeItem(ACTIVE_HISTORY_ID_KEY);
@@ -1173,105 +1139,6 @@ function UploadPage({ user }) {
       }
       return next;
     });
-  };
-
-  const handleSpeakSummary = () => {
-    if (!summary) {
-      toast.info("Summary is empty");
-      return "";
-    }
-    return handleGenerateAudio();
-  };
-
-  const handleGenerateAudio = async () => {
-    if (!summary) {
-      toast.info("Summary is empty");
-      return "";
-    }
-    try {
-      setAudioLoading(true);
-      const response = await fetch(`${API_BASE}/api/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: summary, language: ttsLanguage, translate: true }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to generate audio");
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-      setAudioUrl(url);
-      toast.success("Audio generated");
-      return url;
-    } catch (error) {
-      console.error(error);
-      toast.error(getReadableErrorMessage(error, "Failed to generate audio"));
-      return "";
-    } finally {
-      setAudioLoading(false);
-    }
-  };
-
-  const getExportFilename = (response, format) => {
-    const fallback = `study_set.${format === "quiz" ? "quiz.txt" : format}`;
-    const disposition = response.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename="([^"]+)"/i);
-    return match?.[1] || fallback;
-  };
-
-  const handleExport = async (format) => {
-    if (!hasResults) {
-      toast.info("Generate study content first");
-      return;
-    }
-    try {
-      setExportingFormat(format);
-      const response = await fetch(`${API_BASE}/api/export/study-set/${format}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "educator_study_set",
-          mcqs,
-          flashcards,
-          summary,
-        }),
-      });
-
-      if (!response.ok) {
-        let message = "Export failed";
-        try {
-          const data = await response.json();
-          message = data?.error || message;
-        } catch (_error) {
-          const text = await response.text();
-          if (text) {
-            message = text;
-          }
-        }
-        throw new Error(message);
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const filename = getExportFilename(response, format);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-      toast.success(`Downloaded ${filename}`);
-    } catch (error) {
-      console.error(error);
-      toast.error(getReadableErrorMessage(error, "Export failed"));
-    } finally {
-      setExportingFormat("");
-    }
   };
 
   return (
