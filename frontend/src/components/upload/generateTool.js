@@ -1,6 +1,6 @@
 import { API_BASE } from "../../config/api";
 
-function buildSourceFormData(source, tool, difficulty = "medium", count = 10, options = {}) {
+function buildSourceFormData(source, tool, difficulty = "medium", count = 12, options = {}) {
   const formData = new FormData();
   const normalizedTool = String(tool || "").trim();
   if (!normalizedTool) {
@@ -8,7 +8,7 @@ function buildSourceFormData(source, tool, difficulty = "medium", count = 10, op
   }
   formData.append("tool", normalizedTool);
   formData.append("difficulty", String(difficulty || "medium"));
-  formData.append("count", String(count || 10));
+  formData.append("count", String(count || 12));
   if (options?.includeImages) {
     formData.append("includeImages", "1");
   }
@@ -42,7 +42,7 @@ function buildSourceFormData(source, tool, difficulty = "medium", count = 10, op
   return null;
 }
 
-async function generateWithTool({ tool, source, difficulty = "medium", count = 10, includeImages = false, authToken = "" }) {
+async function generateWithTool({ tool, source, difficulty = "medium", count = 12, includeImages = false, authToken = "" }) {
   const formData = buildSourceFormData(source, tool, difficulty, count, { includeImages });
   if (!formData) {
     throw new Error("Source missing. Provide text or file.");

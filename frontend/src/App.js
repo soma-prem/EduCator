@@ -20,7 +20,7 @@ import MockTestPage from "./components/mock/MockTestPage";
 import YouTubeGuidePage from "./components/youtube/YouTubeGuidePage";
 import PremiumPage from "./components/premium/PremiumPage";
 import usePremium from "./premium/usePremium";
-import { requiredPlanForFeature } from "./premium/plans";
+import { hasFeature, requiredPlanForFeature } from "./premium/plans";
 import CrownIcon from "./components/premium/CrownIcon";
 
 function App() {
@@ -49,13 +49,27 @@ function App() {
     navigate("/uplod");
   };
 
-  const openMockTest = () => {
+  const openMockTest = async () => {
     if (!user) {
       toast.info("Login first");
       navigate("/login", { state: { from: "/mock-test" } });
       return;
     }
-    if (!premium.canUse("mock_exam")) {
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    let latest = null;
+    try {
+      latest = await premium.refresh();
+    } catch (_error) {
+      latest = null;
+    }
+
+    const plan = String(latest?.plan ?? premium.plan ?? "free").trim().toLowerCase();
+    const active = Boolean(latest?.active ?? premium.active);
+    const expiresAtEpoch = Number(latest?.expiresAtEpoch ?? premium.expiresAtEpoch ?? 0);
+    const allowed = active && expiresAtEpoch > nowSec && hasFeature(plan, "mock_exam");
+
+    if (!allowed) {
       toast.info(`Upgrade to ${requiredPlanForFeature("mock_exam")} to unlock Mock Exam.`);
       navigate("/premium");
       return;
@@ -70,7 +84,7 @@ function App() {
 
   const handleMockTestNavClick = (event) => {
     event.preventDefault();
-    openMockTest();
+    openMockTest().catch(() => {});
   };
 
   const handleLogout = async () => {

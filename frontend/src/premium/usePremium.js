@@ -37,6 +37,15 @@ function usePremium() {
   const lastSyncRef = useRef(state.lastSyncEpoch || 0);
   const loadingRef = useRef(false);
 
+  const effectivePlan = useMemo(() => {
+    const normalized = String(state.plan || "free").trim().toLowerCase();
+    if (normalized === "free") return "free";
+    if (!state.active) return "free";
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (Number(state.expiresAtEpoch || 0) <= nowSec) return "free";
+    return normalized;
+  }, [state.active, state.expiresAtEpoch, state.plan]);
+
   useEffect(() => {
     lastSyncRef.current = state.lastSyncEpoch || 0;
     loadingRef.current = Boolean(state.loading);
@@ -87,7 +96,7 @@ function usePremium() {
     refresh().catch(() => {});
   }, [refresh]);
 
-  const canUse = useCallback((featureKey) => hasFeature(state.plan, featureKey), [state.plan]);
+  const canUse = useCallback((featureKey) => hasFeature(effectivePlan, featureKey), [effectivePlan]);
 
   const requireFeature = useCallback(
     (featureKey, onAllowed) => {
@@ -100,7 +109,7 @@ function usePremium() {
 
   const value = useMemo(
     () => ({
-      plan: state.plan,
+      plan: effectivePlan,
       active: state.active,
       expiresAtEpoch: state.expiresAtEpoch,
       loading: state.loading,
@@ -108,7 +117,7 @@ function usePremium() {
       canUse,
       requireFeature,
     }),
-    [state.plan, state.active, state.expiresAtEpoch, state.loading, refresh, canUse, requireFeature]
+    [effectivePlan, state.active, state.expiresAtEpoch, state.loading, refresh, canUse, requireFeature]
   );
 
   return value;

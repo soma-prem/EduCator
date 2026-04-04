@@ -13,7 +13,7 @@ from utils.mcq_utils import (
     extract_json_object,
 )
 
-GEMINI_EXAM_API_KEY = os.getenv("GEMINI_EXAM_API_KEY", "")
+GEMINI_EXAM_API_KEY = os.getenv("GEMINI_EXAM_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
 GEMINI_EXAM_MODEL = os.getenv("GEMINI_EXAM_MODEL", "gemini-2.5-flash")
 GEMINI_EXAM_MAX_TOKENS = int(os.getenv("GEMINI_EXAM_MAX_TOKENS", "3000"))
 GEMINI_EXAM_TIMEOUT_SECONDS = int(os.getenv("GEMINI_EXAM_TIMEOUT_SECONDS", "90"))
@@ -55,10 +55,11 @@ def _friendly_network_error(endpoint: str, exc: Exception) -> str:
 
 def _call_gemini_exam(prompt, max_output_tokens=GEMINI_EXAM_MAX_TOKENS):
     """
-    Separate Gemini invocation that uses GEMINI_EXAM_API_KEY (do not reuse general key).
+    Separate Gemini invocation that prefers GEMINI_EXAM_API_KEY.
+    Falls back to GEMINI_API_KEY to avoid production misconfiguration where only the general key is set.
     """
     if not GEMINI_EXAM_API_KEY:
-        raise RuntimeError("GEMINI_EXAM_API_KEY is missing in backend environment")
+        raise RuntimeError("GEMINI_EXAM_API_KEY (or GEMINI_API_KEY fallback) is missing in backend environment")
 
     endpoint = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_EXAM_MODEL}:generateContent"

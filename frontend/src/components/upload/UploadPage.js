@@ -844,7 +844,7 @@ function UploadPage({ user }) {
         const saved = readStudySet();
         difficulty = String(saved?.difficultyByMode?.mcq || "medium");
       } catch (_error) {}
-      const data = await generateWithTool({ tool: "mcq", source: activeSource, difficulty, count: 20 });
+      const data = await generateWithTool({ tool: "mcq", source: activeSource, difficulty, count: 12 });
       const normalizeArray = (value) => {
         if (Array.isArray(value)) return value;
         if (typeof value === "string") {
@@ -895,7 +895,7 @@ function UploadPage({ user }) {
         const saved = readStudySet();
         difficulty = String(saved?.difficultyByMode?.flashcards || "medium");
       } catch (_error) {}
-      const data = await generateWithTool({ tool: "flashcards", source: activeSource, difficulty, count: 20, includeImages: true });
+      const data = await generateWithTool({ tool: "flashcards", source: activeSource, difficulty, count: 12, includeImages: true });
       const normalizeArray = (value) => {
         if (Array.isArray(value)) return value;
         if (typeof value === "string") {
@@ -951,7 +951,7 @@ function UploadPage({ user }) {
         difficulty = String(saved?.difficultyByMode?.fill_blanks || "medium");
       } catch (_error) {}
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const data = await generateWithTool({ tool: "fill_blanks", source: activeSource, difficulty, count: 20, authToken: token });
+      const data = await generateWithTool({ tool: "fill_blanks", source: activeSource, difficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.fillBlanks) ? data.fillBlanks : [];
       if (items.length === 0) {
         throw new Error("Server returned no fill-in-the-blanks");
@@ -996,7 +996,7 @@ function UploadPage({ user }) {
         difficulty = String(saved?.difficultyByMode?.true_false || "medium");
       } catch (_error) {}
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const data = await generateWithTool({ tool: "true_false", source: activeSource, difficulty, count: 20, authToken: token });
+      const data = await generateWithTool({ tool: "true_false", source: activeSource, difficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.trueFalse) ? data.trueFalse : [];
       if (items.length === 0) {
         throw new Error("Server returned no true/false questions");

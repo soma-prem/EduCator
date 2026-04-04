@@ -126,7 +126,7 @@ function TrueFalsePage() {
     setRegenerating(true);
     try {
       formData.append("tool", "true_false");
-      formData.append("count", "20");
+      formData.append("count", "12");
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
       const response = await fetch(`${API_BASE}/api/tools/generate`, {
         method: "POST",

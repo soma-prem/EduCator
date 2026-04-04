@@ -399,7 +399,7 @@ function StudySetPage({ mode }) {
       if (currentMode === "mcq") {
         const formData = baseForm;
         formData.append("tool", "mcq");
-        formData.append("count", "20");
+        formData.append("count", "12");
         const response = await fetch(`${API_BASE}/api/tools/generate`, { method: "POST", body: formData });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -426,7 +426,7 @@ function StudySetPage({ mode }) {
       if (currentMode === "flashcards") {
         const formData = baseForm;
         formData.append("tool", "flashcards");
-        formData.append("count", "20");
+        formData.append("count", "12");
         const response = await fetch(`${API_BASE}/api/tools/generate`, { method: "POST", body: formData });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {

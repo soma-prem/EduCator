@@ -164,7 +164,7 @@ async def tool_generate(request: Request):
                 status_code=400,
             )
 
-        count = _normalize_count(form.get("count"), default=20, max_count=80)
+        count = _normalize_count(form.get("count"), default=12, max_count=80)
         include_images = _to_bool(form.get("includeImages"))
 
         if tool == "fill_blanks":
