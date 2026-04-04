@@ -1,4 +1,4 @@
-# EduCator
+# Educational Content Generator AI Agent Development Project - Dual Track Version - EduCator
 
 - Ingestion + sessioning: User logs in (Firebase Auth) and adds multiple sources into a single session; uploads are temporarily stored and the session is persisted (Firestore) for restore/history.
 - AI generation pipeline: Backend (FastAPI) extracts text from uploaded files, then uses LLM calls to generate structured JSON outputs for each tool (MCQs, flashcards, summary, etc.), with retry/validation logic to keep outputs usable.
