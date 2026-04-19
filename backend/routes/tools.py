@@ -202,9 +202,10 @@ async def tool_generate(request: Request):
             }
 
         if tool == "mcq":
-            # Prefer using Gemini directly when a Gemini API key is provided.
-            # Fall back to OpenRouter when configured.
+            # Decide provider and track it in response meta for debugging
+            provider = ""
             if GEMINI_API_KEY:
+                provider = "gemini"
                 instruction = (
                     "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
                     "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
@@ -216,9 +217,10 @@ async def tool_generate(request: Request):
                 )
                 mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
             elif OPENROUTER_API_KEY:
+                provider = "openrouter"
                 mcqs = generate_mcqs_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
             else:
-                # No provider configured - attempt Gemini flow (will raise clearly if key missing)
+                provider = "gemini"
                 instruction = (
                     "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
                     "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
@@ -239,6 +241,7 @@ async def tool_generate(request: Request):
                 "meta": {
                     "difficulty": difficulty,
                     "count": count,
+                    "provider": provider,
                     **source_meta,
                 },
             }
