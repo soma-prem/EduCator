@@ -55,7 +55,10 @@ function UploadPage({ user }) {
     user?.email?.split("@")[0] ||
     "Learner";
   const navigate = useNavigate();
+<<<<<<< HEAD
   const premium = usePremium();
+=======
+>>>>>>> 5880e86 (Project ready)
   const [textValue, setTextValue] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
   const [storedFileId, setStoredFileId] = useState("");
@@ -66,10 +69,19 @@ function UploadPage({ user }) {
   const [flashcards, setFlashcards] = useState([]);
   const [fillBlanks, setFillBlanks] = useState([]);
   const [trueFalse, setTrueFalse] = useState([]);
+  const [matchThePair, setMatchThePair] = useState([]);
   const [loadingStudySet, setLoadingStudySet] = useState(false);
   const [summary, setSummary] = useState("");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
+<<<<<<< HEAD
   const [ttsLanguage] = useState("en");
+=======
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState("");
+  const [ttsLanguage] = useState("en");
+  const [lastSource, setLastSource] = useState(null);
+>>>>>>> 5880e86 (Project ready)
   const [ragQuestion, setRagQuestion] = useState("");
   const [ragAnswer, setRagAnswer] = useState("");
   const [ragLoading, setRagLoading] = useState(false);
@@ -86,14 +98,21 @@ function UploadPage({ user }) {
   const [flashGenerating, setFlashGenerating] = useState(false);
   const [fillBlanksGenerating, setFillBlanksGenerating] = useState(false);
   const [trueFalseGenerating, setTrueFalseGenerating] = useState(false);
+<<<<<<< HEAD
+=======
+  const [matchThePairGenerating, setMatchThePairGenerating] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
+>>>>>>> 5880e86 (Project ready)
   const [mcqReady, setMcqReady] = useState(false);
   const [flashReady, setFlashReady] = useState(false);
   const [fillBlanksReady, setFillBlanksReady] = useState(false);
   const [trueFalseReady, setTrueFalseReady] = useState(false);
+  const [matchThePairReady, setMatchThePairReady] = useState(false);
   const [mcqPayload, setMcqPayload] = useState(null);
   const [flashPayload, setFlashPayload] = useState(null);
   const [fillBlanksPayload, setFillBlanksPayload] = useState(null);
   const [trueFalsePayload, setTrueFalsePayload] = useState(null);
+<<<<<<< HEAD
   const handleOpenYoutubeGuidePage = () => {
     if (!hasSource) {
       toast.info("Add a source first");
@@ -106,6 +125,9 @@ function UploadPage({ user }) {
     }
     navigate("/youtube-guide");
   };
+=======
+  const [matchThePairPayload, setMatchThePairPayload] = useState(null);
+>>>>>>> 5880e86 (Project ready)
 
   const persistSourceSession = (sourceType, sourcePreview, sourceText = "", sourceFileId = "", sourceFileName = "") => {
     let existing = {};
@@ -129,11 +151,13 @@ function UploadPage({ user }) {
               flashcards: "medium",
               true_false: "medium",
               fill_blanks: "medium",
+              match_the_pair: "medium",
             },
       mcqs: [],
       flashcards: [],
       fillBlanks: [],
       trueFalse: [],
+      matchThePair: { sets: [], setCount: 5, pairsPerSet: 5 },
       summary: "",
       mcqSetId: "",
     };
@@ -145,16 +169,23 @@ function UploadPage({ user }) {
     setFlashcards([]);
     setFillBlanks([]);
     setTrueFalse([]);
+    setMatchThePair([]);
     setSummary("");
     setMcqSetId("");
     setMcqReady(false);
     setFlashReady(false);
     setFillBlanksReady(false);
     setTrueFalseReady(false);
+    setMatchThePairReady(false);
     setMcqPayload(null);
     setFlashPayload(null);
     setFillBlanksPayload(null);
     setTrueFalsePayload(null);
+<<<<<<< HEAD
+=======
+    setMatchThePairPayload(null);
+    setAudioUrl("");
+>>>>>>> 5880e86 (Project ready)
   };
 
   useEffect(() => {
@@ -190,6 +221,15 @@ function UploadPage({ user }) {
   const hasText = textValue.trim().length > 0;
   const hasFile = Boolean(uploadFile) || Boolean(storedFileId);
   const canGenerate = hasText || hasFile;
+<<<<<<< HEAD
+=======
+  const hasResults =
+    mcqs.length > 0 ||
+    flashcards.length > 0 ||
+    fillBlanks.length > 0 ||
+    trueFalse.length > 0 ||
+    matchThePair.length > 0;
+>>>>>>> 5880e86 (Project ready)
   const hasSummary = summary.trim().length > 0;
   const hasSource =
     sources.length > 0 ||
@@ -632,6 +672,7 @@ function UploadPage({ user }) {
       flashcards: "medium",
       true_false: "medium",
       fill_blanks: "medium",
+      match_the_pair: "medium",
     };
     try {
       const saved = readStudySet();
@@ -651,6 +692,16 @@ function UploadPage({ user }) {
       flashcards: Array.isArray(data?.flashcards) ? data.flashcards : [],
       fillBlanks: Array.isArray(data?.fillBlanks) ? data.fillBlanks : [],
       trueFalse: Array.isArray(data?.trueFalse) ? data.trueFalse : [],
+      matchThePair:
+        data?.matchThePair && typeof data.matchThePair === "object"
+          ? {
+              sets: Array.isArray(data.matchThePair?.sets) ? data.matchThePair.sets : [],
+              setCount: Number(data.matchThePair?.setCount || 5) || 5,
+              pairsPerSet: Number(data.matchThePair?.pairsPerSet || 5) || 5,
+            }
+          : Array.isArray(matchThePair) && matchThePair.length > 0
+          ? { sets: matchThePair, setCount: 5, pairsPerSet: 5 }
+          : { sets: [], setCount: 5, pairsPerSet: 5 },
       summary: String(data?.summary || "").trim(),
       mcqSetId: data?.mcqSetId || "",
       sourceType,
@@ -671,6 +722,7 @@ function UploadPage({ user }) {
       flashcards.length ||
       fillBlanks.length ||
       trueFalse.length ||
+      matchThePair.length ||
       summary ||
       textValue ||
       uploadFile ||
@@ -709,12 +761,14 @@ function UploadPage({ user }) {
       const restoredFlashcards = Array.isArray(saved?.flashcards) ? saved.flashcards : [];
       const restoredFillBlanks = Array.isArray(saved?.fillBlanks) ? saved.fillBlanks : [];
       const restoredTrueFalse = Array.isArray(saved?.trueFalse) ? saved.trueFalse : [];
+      const restoredMatchSets = Array.isArray(saved?.matchThePair?.sets) ? saved.matchThePair.sets : [];
       const restoredSummary = String(saved?.summary || "").trim();
       const restoredMcqSetId = String(saved?.mcqSetId || "").trim();
       if (restoredMcqs.length) setMcqs(restoredMcqs);
       if (restoredFlashcards.length) setFlashcards(restoredFlashcards);
       if (restoredFillBlanks.length) setFillBlanks(restoredFillBlanks);
       if (restoredTrueFalse.length) setTrueFalse(restoredTrueFalse);
+      if (restoredMatchSets.length) setMatchThePair(restoredMatchSets);
       if (restoredSummary) setSummary(restoredSummary);
       if (restoredMcqSetId) setMcqSetId(restoredMcqSetId);
       if (restoredMcqs.length) {
@@ -785,6 +839,25 @@ function UploadPage({ user }) {
           difficultyByMode: saved?.difficultyByMode || undefined,
         });
       }
+      if (restoredMatchSets.length) {
+        setMatchThePairReady(true);
+        setMatchThePairPayload({
+          mcqs: restoredMcqs,
+          flashcards: restoredFlashcards,
+          fillBlanks: restoredFillBlanks,
+          trueFalse: restoredTrueFalse,
+          matchThePair: saved?.matchThePair || { sets: restoredMatchSets, setCount: 5, pairsPerSet: 5 },
+          summary: restoredSummary,
+          mcqSetId: restoredMcqSetId,
+          sourceType: saved?.sourceType || "",
+          sourcePreview: saved?.sourcePreview || "",
+          sourceText: saved?.sourceText || "",
+          sourceFileId: saved?.sourceFileId || "",
+          sourceFileName: saved?.sourceFileName || "",
+          difficultyByMode: saved?.difficultyByMode || undefined,
+          sources: Array.isArray(saved?.sources) ? saved.sources : [],
+        });
+      }
       if (!hasSavedSources && saved?.sourceType === "text" && saved?.sourceText) {
         setTextValue(String(saved.sourceText));
         setInputMode("text");
@@ -824,6 +897,7 @@ function UploadPage({ user }) {
     flashcards.length,
     fillBlanks.length,
     trueFalse.length,
+    matchThePair.length,
     summary,
     textValue,
     uploadFile,
@@ -1023,6 +1097,53 @@ function UploadPage({ user }) {
     }
   };
 
+  const handleGenerateMatchThePair = async () => {
+    if (matchThePairReady) {
+      handleViewMatchThePair();
+      return;
+    }
+    if (!canGenerate) {
+      toast.info("Enter text or upload a file first");
+      return;
+    }
+    try {
+      setMatchThePairGenerating(true);
+      const activeSource = getActiveSource();
+      const savedRaw = sessionStorage.getItem("educator_study_set");
+      let difficulty = "medium";
+      if (savedRaw) {
+        try {
+          const saved = JSON.parse(savedRaw);
+          difficulty = String(saved?.difficultyByMode?.match_the_pair || "medium");
+        } catch (_error) {}
+      }
+      const data = await generateWithTool({ tool: "match_the_pair", source: activeSource, difficulty, count: 25 });
+      const sets = Array.isArray(data?.matchThePair?.sets) ? data.matchThePair.sets : [];
+      if (sets.length === 0) {
+        throw new Error("Server returned no match-the-pair sets");
+      }
+      setMatchThePair(sets);
+      const payload = buildStudySetPayload({
+        mcqs,
+        flashcards,
+        fillBlanks,
+        trueFalse,
+        matchThePair: { sets, setCount: 5, pairsPerSet: 5 },
+        summary,
+        mcqSetId,
+      });
+      sessionStorage.setItem("educator_study_set", JSON.stringify(payload));
+      setMatchThePairPayload(payload);
+      setMatchThePairReady(true);
+      toast.success("Match-the-pair generated. Click to open.");
+    } catch (error) {
+      console.error(error);
+      toast.error(getReadableErrorMessage(error, "Failed to generate match-the-pair"));
+    } finally {
+      setMatchThePairGenerating(false);
+    }
+  };
+
   const handleViewMcqs = () => {
     if (!mcqPayload) return;
     navigate("/mcqs", { state: mcqPayload });
@@ -1043,6 +1164,7 @@ function UploadPage({ user }) {
     navigate("/true-false", { state: trueFalsePayload });
   };
 
+<<<<<<< HEAD
   const handleUpgrade = (featureKey) => {
     const required = requiredPlanForFeature(featureKey);
     if (required === "free") return;
@@ -1060,6 +1182,11 @@ function UploadPage({ user }) {
     if (trueFalseReady) return handleViewTrueFalse();
     if (!premium.canUse("true_false")) return handleUpgrade("true_false");
     return handleGenerateTrueFalse();
+=======
+  const handleViewMatchThePair = () => {
+    if (!matchThePairPayload) return;
+    navigate("/match-the-pair", { state: matchThePairPayload });
+>>>>>>> 5880e86 (Project ready)
   };
 
   const handleViewSummary = () => {
@@ -1275,7 +1402,7 @@ function UploadPage({ user }) {
             <div className="card-header">
               <h2 className="card-title">Tools</h2>
             </div>
-            <p className="card-subtitle">Summaries, MCQs, flashcards, fill-in-the-blanks, and true/false.</p>
+            <p className="card-subtitle">Summaries, MCQs, flashcards, fill-in-the-blanks, true/false, and match-the-pair.</p>
             <div className="notebook-card-body tools-stack">
               <div className="tool-actions">
                 <button
@@ -1291,6 +1418,7 @@ function UploadPage({ user }) {
                         flashGenerating ||
                         fillBlanksGenerating ||
                         trueFalseGenerating ||
+                        matchThePairGenerating ||
                         summaryGenerating
                   }
                 >
@@ -1314,7 +1442,8 @@ function UploadPage({ user }) {
                         flashGenerating ||
                         mcqGenerating ||
                         fillBlanksGenerating ||
-                        trueFalseGenerating
+                        trueFalseGenerating ||
+                        matchThePairGenerating
                   }
                 >
                   <span className="tool-action-title">
@@ -1340,6 +1469,7 @@ function UploadPage({ user }) {
                         mcqGenerating ||
                         flashGenerating ||
                         trueFalseGenerating ||
+                        matchThePairGenerating ||
                         summaryGenerating
                   }
                 >
@@ -1381,6 +1511,7 @@ function UploadPage({ user }) {
                         mcqGenerating ||
                         flashGenerating ||
                         fillBlanksGenerating ||
+                        matchThePairGenerating ||
                         summaryGenerating
                   }
                 >
@@ -1409,6 +1540,37 @@ function UploadPage({ user }) {
                 </button>
                 <button
                   type="button"
+                  className={`tool-action-card ${matchThePairReady ? "tool-action-ready" : ""}`}
+                  onClick={matchThePairReady ? handleViewMatchThePair : handleGenerateMatchThePair}
+                  disabled={
+                    matchThePairReady
+                      ? !matchThePairPayload
+                      : !canGenerate ||
+                        loadingStudySet ||
+                        matchThePairGenerating ||
+                        mcqGenerating ||
+                        flashGenerating ||
+                        fillBlanksGenerating ||
+                        trueFalseGenerating ||
+                        summaryGenerating
+                  }
+                >
+                  <span className="tool-action-title">
+                    {matchThePairReady
+                      ? "Match-the-Pair Ready"
+                      : matchThePairGenerating
+                      ? "Generating Match-the-Pair..."
+                      : "Match the Pair"}
+                  </span>
+                  <span className="tool-action-subtitle">
+                    {matchThePairReady ? "Click to open your match-the-pair sets" : "Match key terms and ideas"}
+                  </span>
+                  {!matchThePairReady && matchThePairGenerating && (
+                    <span className="tool-action-spinner" aria-hidden="true" />
+                  )}
+                </button>
+                <button
+                  type="button"
                   className={`tool-action-card ${hasSummary ? "tool-action-ready" : ""}`}
                   onClick={handleGenerateSummary}
                   disabled={
@@ -1417,7 +1579,8 @@ function UploadPage({ user }) {
                     mcqGenerating ||
                     flashGenerating ||
                     fillBlanksGenerating ||
-                    trueFalseGenerating
+                    trueFalseGenerating ||
+                    matchThePairGenerating
                   }
                 >
                   <span className="tool-action-title">

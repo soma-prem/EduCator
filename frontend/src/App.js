@@ -15,6 +15,7 @@ import AnalyticsPage from "./components/upload/AnalyticsPage";
 import SummaryPage from "./components/upload/SummaryPage";
 import FillBlanksPage from "./components/upload/FillBlanksPage";
 import TrueFalsePage from "./components/upload/TrueFalsePage";
+<<<<<<< HEAD
 import ExamMockPage from "./components/upload/ExamMockPage";
 import MockTestPage from "./components/mock/MockTestPage";
 import YouTubeGuidePage from "./components/youtube/YouTubeGuidePage";
@@ -22,6 +23,9 @@ import PremiumPage from "./components/premium/PremiumPage";
 import usePremium from "./premium/usePremium";
 import { hasFeature, requiredPlanForFeature } from "./premium/plans";
 import CrownIcon from "./components/premium/CrownIcon";
+=======
+import MatchThePairPage from "./components/upload/MatchThePairPage";
+>>>>>>> 5880e86 (Project ready)
 
 function App() {
   const [user, setUser] = useState(null);
@@ -276,10 +280,17 @@ function App() {
           }
         />
         <Route
+<<<<<<< HEAD
           path="/exam-mock"
           element={
             <ProtectedRoute user={user}>
               <ExamMockPage />
+=======
+          path="/match-the-pair"
+          element={
+            <ProtectedRoute user={user}>
+              <MatchThePairPage />
+>>>>>>> 5880e86 (Project ready)
             </ProtectedRoute>
           }
         />

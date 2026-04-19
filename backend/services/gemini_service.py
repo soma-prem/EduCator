@@ -8,7 +8,7 @@ from urllib import request as urlrequest
 from utils.mcq_utils import extract_json_array, extract_json_object
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_MCQ_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "1"))
 GEMINI_MAX_TOKENS = int(os.getenv("GEMINI_MAX_TOKENS", "800"))
@@ -27,6 +27,7 @@ OPENROUTER_SUMMARIZATION_KEY = os.getenv("OPENROUTER_SUMMARIZATION_KEY", "")
 OPENROUTER_FILL_IN_THE_BLANKS_KEY = os.getenv("OPENROUTER_FILL_IN_THE_BLANKS_KEY", "")
 OPENROUTER_TRUE_FALSE_KEY = os.getenv("OPENROUTER_TRUE_FALSE_KEY", "")
 OPENROUTER_QA_MAX_TOKENS = int(os.getenv("OPENROUTER_QA_MAX_TOKENS", "900"))
+MATCH_THE_PAIR_API = os.getenv("MATCH_THE_PAIR_API", "")
 
 
 def _looks_truncated(text):
@@ -364,6 +365,72 @@ def generate_true_false_from_source_openrouter(source_text, expected_count=10, d
     if not isinstance(items, list) or len(items) < expected_count:
         raise RuntimeError("OpenRouter returned invalid true/false JSON")
     return items[:expected_count]
+
+
+def generate_match_the_pair_from_source_openrouter(
+    source_text,
+    expected_set_count=5,
+    expected_pairs_per_set=5,
+    difficulty="medium",
+):
+    source_text = _trim_source_text(source_text)
+    difficulty = str(difficulty or "medium").strip().lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "medium"
+    if not MATCH_THE_PAIR_API:
+        raise RuntimeError("MATCH_THE_PAIR_API is missing in backend environment")
+
+    instruction = (
+        "You are creating content for a 'Match the Pair' activity based on the source.\n"
+        "Difficulty: easy = obvious term/definition; medium = conceptual pairings; hard = nuanced, tricky pairings.\n"
+        f"Selected difficulty: {difficulty}.\n\n"
+        f"Create exactly {expected_set_count} sets.\n"
+        f"Each set must contain exactly {expected_pairs_per_set} pairs.\n"
+        "Pairs should be grounded in the source content.\n"
+        "Avoid near-duplicates within a set.\n\n"
+        "Return ONLY a strict JSON object with this exact shape:\n"
+        "{\n"
+        '  "sets":[\n'
+        "    {\n"
+        '      "title":"...",\n'
+        '      "pairs":[{"left":"...","right":"..."}, ...]\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "No markdown fences, no extra keys, no extra text.\n\n"
+        f"Source content:\n{source_text}"
+    )
+
+    token_budget = max(GEMINI_MAX_TOKENS, 2200)
+    body = call_openrouter(instruction, max_output_tokens=token_budget, api_key=MATCH_THE_PAIR_API)
+    text = extract_openrouter_text(body)
+    if not text:
+        raise RuntimeError("OpenRouter returned empty match-the-pair response")
+    try:
+        data = extract_json_object(text)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    sets = data.get("sets") if isinstance(data, dict) else None
+    if not isinstance(sets, list) or len(sets) < expected_set_count:
+        raise RuntimeError("OpenRouter returned invalid match-the-pair JSON")
+
+    normalized_sets = []
+    for raw_set in sets[:expected_set_count]:
+        title = str((raw_set or {}).get("title") or "").strip() or "Match the Pair"
+        pairs = (raw_set or {}).get("pairs")
+        if not isinstance(pairs, list) or len(pairs) < expected_pairs_per_set:
+            raise RuntimeError("OpenRouter returned invalid match-the-pair pairs")
+        normalized_pairs = []
+        for pair in pairs[:expected_pairs_per_set]:
+            left = str((pair or {}).get("left") or "").strip()
+            right = str((pair or {}).get("right") or "").strip()
+            if not left or not right:
+                raise RuntimeError("OpenRouter returned empty match-the-pair pair values")
+            normalized_pairs.append({"left": left, "right": right})
+        normalized_sets.append({"title": title, "pairs": normalized_pairs})
+
+    return normalized_sets
 
 
 def generate_summary_from_source(source_text):

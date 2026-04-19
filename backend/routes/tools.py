@@ -4,15 +4,18 @@ from fastapi.responses import JSONResponse
 from routes.generate import get_source_text_from_request
 from services.mcq_session import store_mcq_session, update_mcq_session
 from services.gemini_service import (
+    GEMINI_API_KEY,
     OPENROUTER_FLASHCARDS_API_KEY,
     OPENROUTER_FILL_IN_THE_BLANKS_KEY,
     OPENROUTER_TRUE_FALSE_KEY,
     OPENROUTER_API_KEY,
+    MATCH_THE_PAIR_API,
     generate_items_from_source,
     generate_mcqs_from_source_openrouter,
     generate_flashcards_from_source_openrouter,
     generate_fill_in_the_blanks_from_source_openrouter,
     generate_true_false_from_source_openrouter,
+    generate_match_the_pair_from_source_openrouter,
     generate_summary_from_source,
     generate_study_set_from_source,
 )
@@ -126,6 +129,9 @@ def _normalize_tool(value: str) -> str:
         "fill_in_the_blanks": "fill_blanks",
         "true_false": "true_false",
         "true-false": "true_false",
+        "match_the_pair": "match_the_pair",
+        "match-the-pair": "match_the_pair",
+        "matchthepair": "match_the_pair",
         "summary": "summary",
         "study_set": "study_set",
         "study-set": "study_set",
@@ -159,7 +165,7 @@ async def tool_generate(request: Request):
         if not tool:
             return JSONResponse(
                 content={
-                    "error": "tool is required (mcq, flashcards, fill_blanks, true_false, summary, study_set)"
+                    "error": "tool is required (mcq, flashcards, fill_blanks, true_false, match_the_pair, summary, study_set)"
                 },
                 status_code=400,
             )
@@ -196,16 +202,30 @@ async def tool_generate(request: Request):
             }
 
         if tool == "mcq":
-            if OPENROUTER_API_KEY:
-                mcqs = generate_mcqs_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
-            else:
+            # Prefer using Gemini directly when a Gemini API key is provided.
+            # Fall back to OpenRouter when configured.
+            if GEMINI_API_KEY:
                 instruction = (
                     "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
                     "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
                     f"Selected difficulty: {difficulty}.\n\n"
                     f"Create exactly {count} MCQs from the provided content. "
                     "Each item must be: "
-                    "{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
+                    "{\"question\":\"...\",\"options\": [\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
+                    "The explanation should briefly explain why the correct answer is right."
+                )
+                mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
+            elif OPENROUTER_API_KEY:
+                mcqs = generate_mcqs_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
+            else:
+                # No provider configured - attempt Gemini flow (will raise clearly if key missing)
+                instruction = (
+                    "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
+                    "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
+                    f"Selected difficulty: {difficulty}.\n\n"
+                    f"Create exactly {count} MCQs from the provided content. "
+                    "Each item must be: "
+                    "{\"question\":\"...\",\"options\": [\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
                     "The explanation should briefly explain why the correct answer is right."
                 )
                 mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
@@ -332,6 +352,29 @@ async def tool_generate(request: Request):
             return {
                 "tool": tool,
                 "trueFalse": items,
+                "meta": {
+                    "difficulty": difficulty,
+                    "count": count,
+                    **source_meta,
+                },
+            }
+
+        if tool == "match_the_pair":
+            if not MATCH_THE_PAIR_API:
+                raise RuntimeError("MATCH_THE_PAIR_API is missing in backend environment")
+            sets = generate_match_the_pair_from_source_openrouter(
+                source_text,
+                expected_set_count=5,
+                expected_pairs_per_set=5,
+                difficulty=difficulty,
+            )
+            return {
+                "tool": tool,
+                "matchThePair": {
+                    "sets": sets,
+                    "setCount": 5,
+                    "pairsPerSet": 5,
+                },
                 "meta": {
                     "difficulty": difficulty,
                     "count": count,
