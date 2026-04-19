@@ -88,6 +88,7 @@ def call_gemini(prompt, max_output_tokens=GEMINI_MAX_TOKENS, response_mime_type=
     payload_bytes = json.dumps(payload).encode("utf-8")
 
     last_error = None
+    tried_global_fallback = False
     for attempt in range(GEMINI_MAX_RETRIES + 1):
         req = urlrequest.Request(
             endpoint,
@@ -102,9 +103,22 @@ def call_gemini(prompt, max_output_tokens=GEMINI_MAX_TOKENS, response_mime_type=
             error_body = exc.read().decode("utf-8", errors="ignore")
             last_error = f"Gemini HTTP {exc.code}: {error_body}"
 
-            if exc.code == 429 and "Quota exceeded" in error_body:
+            # If a per-tool key hits free-tier quota, try the global GEMINI_API_KEY as a fallback once.
+            if exc.code == 429 and re.search(r"quota", error_body, flags=re.IGNORECASE):
+                # If we tried a specific key and there is a different global key available, attempt it once.
+                global_key = str(GEMINI_API_KEY or "").strip()
+                if global_key and global_key != key and not tried_global_fallback:
+                    tried_global_fallback = True
+                    key = global_key
+                    endpoint = (
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+                        f"?key={key}"
+                    )
+                    # retry immediately with the global key
+                    continue
+                # If fallback not available or already tried, surface a clear message.
                 raise RuntimeError(
-                    "Gemini free-tier quota exceeded. Wait for reset or use a paid key."
+                    "Gemini quota exceeded on provided key. Wait for quota reset or use a paid key."
                 ) from exc
 
             if exc.code == 429 and attempt < GEMINI_MAX_RETRIES:
