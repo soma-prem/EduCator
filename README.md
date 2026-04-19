@@ -1,17 +1,17 @@
-# Week 6: Content-to-Learning Materials Converter & Smart Study Assistant
+# Week 8 : Final Complete Project
 
-# Educational Content Generator AI Agent Development Project – Dual Track Version - Educator
+## EduCator — Content-to-Learning Materials Converter & Smart Study Assistant
 EduCator turns uploaded study content into practice material (MCQs, flashcards, fill-in-the-blanks, true/false, and summaries) and adds retention tools like spaced repetition, revision, and mock exams.
 
 ## Current Workflow
 1. User logs in (Google or email/password).
 2. User adds one or more sources into a single session (text + files: `.txt`, `.pdf`, `.docx`, `.pptx`).
 3. From the Upload page, user generates study tools (UI defaults to **12** items per tool where applicable):
-   - MCQs
-   - Flashcards (optionally with images)
-   - Summary
-   - Fill-in-the-Blanks (Premium)
-   - True/False (Premium)
+  - MCQs
+  - Flashcards (optionally with images)
+  - Summary
+  - Fill-in-the-Blanks (Premium)
+  - True/False (Premium)
 4. User practices on the respective pages, gets scoring/progress, and can export results.
 5. On the Study Set page, the app builds a spaced-repetition plan and can run Knowledge Gap + Smart Revision analysis.
 6. AI Guide answers questions grounded in the uploaded sources (text + optional voice answer).
@@ -71,6 +71,60 @@ EduCator turns uploaded study content into practice material (MCQs, flashcards, 
 
 - Diagnostics:
   Firebase connectivity check via /api/diag/firebase
+
+## Recent Changes / Project Status (Week 8)
+- Provider migration: removed OpenRouter usage and now use Google Gemini via a single service client (`backend/services/gemini_service.py`).
+- Per-tool API keys: the backend supports dedicated environment variables for each tool to limit blast radius and monitor usage:
+  - `GEMINI_API_KEY` (global fallback)
+  - `GEMINI_MCQ_API_KEY`
+  - `GEMINI_FLASHCARD_API_KEY`
+  - `GEMINI_TRUEANDFALSE_API_KEY`
+  - `GEMINI_VOICE_API_KEY`
+  - `GEMINI_FILLIN_API_KEY`
+  - `GEMINI_SUMMARY_API_KEY`
+  - `GEMINI_TEXTAI_API_KEY`
+  - `GEMINI_MOCKTEST_API_KEY`
+
+- No silent fallbacks to OpenRouter: endpoints now fail fast if a required GEMINI_* key is missing, making misconfiguration visible in production.
+- Quota mitigation: `call_gemini()` now attempts a single fallback to the global `GEMINI_API_KEY` when a per-tool key hits a quota/429, then surfaces a clear error if quota remains exhausted.
+- Session reuse: MCQ generation flow (`/api/tools/generate`) reuses an existing MCQ session when `mcqSetId` is present and `regenerate` is false, avoiding unnecessary regenerations and saving quota.
+- UI cleanup: removed the "Start Smart Revision" and "Start Voice Tutor" buttons from the Study Set page to simplify the MCQ view. Smart Revision and Voice Tutor UI remain available as contextual sections when data or actions are present.
+
+## Known Issues / Next Actions
+- Gemini free-tier quotas can still be exhausted. Recommended actions:
+  - Provide a paid/Pro `GEMINI_API_KEY` in the Render environment.
+  - Set sensible per-tool limits and reuse cached sessions where possible.
+  - Consider server-side queuing or exponential backoff for heavy generation workloads.
+- Build: after UI changes, rebuild the frontend (`npm install && npm run build`) and redeploy static assets to Vercel.
+
+## Deployment Checklist (Render / Vercel)
+- Remove any legacy `OPENROUTER_*` env variables from Render (they can cause accidental provider usage).
+- Set the required `GEMINI_*` env variables on Render and verify they are paid/provisioned if production traffic is expected.
+- Redeploy backend on Render and frontend on Vercel.
+
+## How to Build & Run Locally
+Backend (Python):
+```
+python -m venv .venv
+source .venv/Scripts/activate    # Windows: .venv\\Scripts\\activate
+pip install -r backend/requirements.txt
+cd backend
+uvicorn app:app --reload
+```
+
+Frontend (React):
+```
+cd frontend
+npm install
+npm run start     # dev
+npm run build     # production bundle
+```
+
+## Contact / Troubleshooting
+- If you see unexpected provider errors (OpenRouter 402 or Gemini quota messages), verify the Render environment variables and redeploy. Check backend logs for clear errors when keys are missing or quota is exceeded.
+
+---
+Updated: Week 8 status and deployment notes.
 
 
 ## TECH STACK
