@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from routes.generate import get_source_text_from_request
-from services.mcq_session import store_mcq_session, update_mcq_session
+from services.mcq_session import store_mcq_session, update_mcq_session, get_mcq_session
 from services.gemini_service import (
     GEMINI_API_KEY,
     GEMINI_MCQ_API_KEY,
@@ -178,6 +178,37 @@ async def tool_generate(request: Request):
             require_feature(request, "true_false")
 
         source_text, source_meta = await get_source_text_from_request(request)
+        # If client provided an existing MCQ session id and did not request regeneration,
+        # return the stored items instead of regenerating.
+        mcq_set_id = str(form.get("mcqSetId") or "").strip()
+        regenerate = _to_bool(form.get("regenerate"))
+        if mcq_set_id and not regenerate:
+            session = get_mcq_session(mcq_set_id)
+            if session:
+                # Serve cached study data depending on requested tool
+                if tool == "study_set":
+                    return {
+                        "tool": tool,
+                        "mcqs": session.get("items", []),
+                        "flashcards": session.get("flashcards", []),
+                        "summary": session.get("summary", ""),
+                        "mcqSetId": mcq_set_id,
+                        "meta": {"cached": True, **source_meta},
+                    }
+                if tool == "mcq":
+                    return {
+                        "tool": tool,
+                        "mcqs": session.get("items", []),
+                        "mcqSetId": mcq_set_id,
+                        "meta": {"cached": True, **source_meta},
+                    }
+                if tool == "flashcards":
+                    return {
+                        "tool": tool,
+                        "flashcards": session.get("flashcards", []),
+                        "mcqSetId": mcq_set_id,
+                        "meta": {"cached": True, **source_meta},
+                    }
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
 
         if tool == "study_set":
