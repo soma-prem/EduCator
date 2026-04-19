@@ -20,12 +20,12 @@ from services.gemini_service import (
     OPENROUTER_API_KEY,
     OPENROUTER_FLASHCARDS_API_KEY,
     OPENROUTER_FILL_IN_THE_BLANKS_KEY,
-    OPENROUTER_TRUE_FALSE_KEY,
     generate_items_from_source,
     generate_mcqs_from_source_openrouter,
     generate_flashcards_from_source_openrouter,
     generate_fill_in_the_blanks_from_source_openrouter,
     generate_true_false_from_source_openrouter,
+    generate_true_false_from_source,
     generate_summary_from_source,
 )
 from services.gemini_service import generate_study_set_from_source
@@ -604,9 +604,14 @@ async def generate_true_false(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        if not OPENROUTER_TRUE_FALSE_KEY:
-            raise RuntimeError("OPENROUTER_TRUE_FALSE_KEY is missing in backend environment")
-        items = generate_true_false_from_source_openrouter(source_text, count, difficulty=difficulty)
+        # Prefer Gemini true/false key; fall back to legacy OpenRouter if configured.
+        if os.getenv("GEMINI_TRUEANDFALSE_API_KEY") or os.getenv("GEMINI_API_KEY"):
+            api_key = os.getenv("GEMINI_TRUEANDFALSE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty, api_key=api_key)
+        else:
+            if not OPENROUTER_TRUE_FALSE_KEY:
+                raise RuntimeError("No true/false provider configured in backend environment")
+            items = generate_true_false_from_source_openrouter(source_text, count, difficulty=difficulty)
         return {"trueFalse": items}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)

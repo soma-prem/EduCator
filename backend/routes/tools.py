@@ -5,9 +5,10 @@ from routes.generate import get_source_text_from_request
 from services.mcq_session import store_mcq_session, update_mcq_session
 from services.gemini_service import (
     GEMINI_API_KEY,
+    GEMINI_MCQ_API_KEY,
+    GEMINI_FLASHCARD_API_KEY,
     OPENROUTER_FLASHCARDS_API_KEY,
     OPENROUTER_FILL_IN_THE_BLANKS_KEY,
-    OPENROUTER_TRUE_FALSE_KEY,
     OPENROUTER_API_KEY,
     MATCH_THE_PAIR_API,
     generate_items_from_source,
@@ -15,6 +16,7 @@ from services.gemini_service import (
     generate_flashcards_from_source_openrouter,
     generate_fill_in_the_blanks_from_source_openrouter,
     generate_true_false_from_source_openrouter,
+    generate_true_false_from_source,
     generate_match_the_pair_from_source_openrouter,
     generate_summary_from_source,
     generate_study_set_from_source,
@@ -204,7 +206,7 @@ async def tool_generate(request: Request):
         if tool == "mcq":
             # Decide provider and track it in response meta for debugging
             provider = ""
-            if GEMINI_API_KEY:
+            if GEMINI_MCQ_API_KEY or GEMINI_API_KEY:
                 provider = "gemini"
                 instruction = (
                     "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
@@ -215,7 +217,8 @@ async def tool_generate(request: Request):
                     "{\"question\":\"...\",\"options\": [\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
                     "The explanation should briefly explain why the correct answer is right."
                 )
-                mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
+                mcq_api_key = GEMINI_MCQ_API_KEY or GEMINI_API_KEY
+                mcqs = generate_items_from_source(source_text, instruction, expected_count=count, api_key=mcq_api_key)
             elif OPENROUTER_API_KEY:
                 provider = "openrouter"
                 mcqs = generate_mcqs_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
@@ -230,7 +233,7 @@ async def tool_generate(request: Request):
                     "{\"question\":\"...\",\"options\": [\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
                     "The explanation should briefly explain why the correct answer is right."
                 )
-                mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
+                mcqs = generate_items_from_source(source_text, instruction, expected_count=count, api_key=(GEMINI_MCQ_API_KEY or GEMINI_API_KEY))
 
             mcq_set_id = store_mcq_session(mcqs)
             update_mcq_session(mcq_set_id, items=mcqs, flashcards=[], source_text=source_text)
@@ -247,7 +250,17 @@ async def tool_generate(request: Request):
             }
 
         if tool == "flashcards":
-            if OPENROUTER_FLASHCARDS_API_KEY:
+            # Prefer Gemini flashcard key when configured, otherwise fall back to OpenRouter.
+            if GEMINI_FLASHCARD_API_KEY or GEMINI_API_KEY:
+                api_key = GEMINI_FLASHCARD_API_KEY or GEMINI_API_KEY
+                instruction = (
+                    "Difficulty: easy = direct definitions; medium = conceptual Q/A; hard = nuanced, tricky, and application-focused.\n"
+                    f"Selected difficulty: {difficulty}.\n\n"
+                    f"Create exactly {count} flashcards from the provided content. "
+                    "Each item must be: {\"front\":\"...\",\"back\":\"...\",\"topic\":\"...\"}."
+                )
+                flashcards = generate_items_from_source(source_text, instruction, expected_count=count, api_key=api_key)
+            elif OPENROUTER_FLASHCARDS_API_KEY:
                 flashcards = generate_flashcards_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
             else:
                 instruction = (
@@ -349,9 +362,15 @@ async def tool_generate(request: Request):
             }
 
         if tool == "true_false":
-            if not OPENROUTER_TRUE_FALSE_KEY:
-                raise RuntimeError("OPENROUTER_TRUE_FALSE_KEY is missing in backend environment")
-            items = generate_true_false_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
+            # Prefer Gemini per-tool key for true/false; fall back to Gemini global key, then OpenRouter legacy.
+            if GEMINI_TRUEANDFALSE_API_KEY or GEMINI_API_KEY:
+                tf_api_key = GEMINI_TRUEANDFALSE_API_KEY or GEMINI_API_KEY
+                items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty, api_key=tf_api_key)
+            elif OPENROUTER_TRUE_FALSE_KEY:
+                items = generate_true_false_from_source_openrouter(source_text, expected_count=count, difficulty=difficulty)
+            else:
+                # No provider configured
+                raise RuntimeError("No true/false provider configured in backend environment")
             return {
                 "tool": tool,
                 "trueFalse": items,

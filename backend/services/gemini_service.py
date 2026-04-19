@@ -8,7 +8,9 @@ from urllib import request as urlrequest
 from utils.mcq_utils import extract_json_array, extract_json_object
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_MCQ_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MCQ_API_KEY = os.getenv("GEMINI_MCQ_API_KEY", "")
+GEMINI_FLASHCARD_API_KEY = os.getenv("GEMINI_FLASHCARD_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "1"))
 GEMINI_MAX_TOKENS = int(os.getenv("GEMINI_MAX_TOKENS", "800"))
@@ -25,9 +27,11 @@ OPENROUTER_FLASHCARDS_API_KEY = os.getenv("OPENROUTER_FLASHCARDS_API_KEY", "")
 OPENROUTER_VOICE_API_KEY = os.getenv("OPENROUTER_VOICE_API_KEY", "")
 OPENROUTER_SUMMARIZATION_KEY = os.getenv("OPENROUTER_SUMMARIZATION_KEY", "")
 OPENROUTER_FILL_IN_THE_BLANKS_KEY = os.getenv("OPENROUTER_FILL_IN_THE_BLANKS_KEY", "")
-OPENROUTER_TRUE_FALSE_KEY = os.getenv("OPENROUTER_TRUE_FALSE_KEY", "")
 OPENROUTER_QA_MAX_TOKENS = int(os.getenv("OPENROUTER_QA_MAX_TOKENS", "900"))
+GEMINI_TRUEANDFALSE_API_KEY = os.getenv("GEMINI_TRUEANDFALSE_API_KEY", "")
 MATCH_THE_PAIR_API = os.getenv("MATCH_THE_PAIR_API", "")
+
+GEMINI_VOICE_API_KEY = os.getenv("GEMINI_VOICE_API_KEY", "")
 
 
 def _looks_truncated(text):
@@ -74,13 +78,15 @@ def _trim_source_text(source_text):
     return source_text[:GEMINI_SOURCE_CHAR_LIMIT]
 
 
-def call_gemini(prompt, max_output_tokens=GEMINI_MAX_TOKENS, response_mime_type="application/json"):
-    if not GEMINI_API_KEY:
+def call_gemini(prompt, max_output_tokens=GEMINI_MAX_TOKENS, response_mime_type="application/json", api_key=None):
+    # Allow passing a per-tool Gemini key via api_key; fallback to GEMINI_API_KEY
+    key = str(api_key or GEMINI_API_KEY or "").strip()
+    if not key:
         raise RuntimeError("GEMINI_API_KEY is missing in backend environment")
 
     endpoint = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-        f"?key={GEMINI_API_KEY}"
+        f"?key={key}"
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -162,7 +168,7 @@ def extract_openrouter_text(body):
     return str(content or "").strip()
 
 
-def generate_items_from_source(source_text, instruction, expected_count=10):
+def generate_items_from_source(source_text, instruction, expected_count=10, api_key=None):
     source_text = _trim_source_text(source_text)
     def item_signature(item):
         if not isinstance(item, dict):
@@ -197,7 +203,7 @@ def generate_items_from_source(source_text, instruction, expected_count=10):
         else:
             max_tokens = max(GEMINI_MAX_TOKENS, 5000 if remaining > 10 else 1800)
 
-        body = call_gemini(prompt, max_output_tokens=max_tokens, response_mime_type="application/json")
+        body = call_gemini(prompt, max_output_tokens=max_tokens, response_mime_type="application/json", api_key=api_key)
         data = json.loads(body)
         text = extract_gemini_text(data)
         if not text:
@@ -349,10 +355,9 @@ def generate_true_false_from_source_openrouter(source_text, expected_count=10, d
         "Return only a strict JSON array with no markdown fences and no extra text.\n\n"
         f"Source content:\n{source_text}"
     )
-    if not OPENROUTER_TRUE_FALSE_KEY:
-        raise RuntimeError("OPENROUTER_TRUE_FALSE_KEY is missing in backend environment")
+    # Deprecated: legacy OpenRouter-based true/false generator. Prefer Gemini-based key.
     token_budget = max(GEMINI_MAX_TOKENS, 1600 if expected_count <= 10 else 3400)
-    body = call_openrouter(instruction, max_output_tokens=token_budget, api_key=OPENROUTER_TRUE_FALSE_KEY)
+    body = call_openrouter(instruction, max_output_tokens=token_budget)
     data = json.loads(body)
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
     text = str(content or "").strip()
@@ -365,6 +370,34 @@ def generate_true_false_from_source_openrouter(source_text, expected_count=10, d
     if not isinstance(items, list) or len(items) < expected_count:
         raise RuntimeError("OpenRouter returned invalid true/false JSON")
     return items[:expected_count]
+
+
+def generate_true_false_from_source(source_text, expected_count=10, difficulty="medium", api_key=None):
+    source_text = _trim_source_text(source_text)
+    difficulty = str(difficulty or "medium").strip().lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "medium"
+    instruction = (
+        "Difficulty: easy = straightforward facts; medium = moderately tricky statements; hard = nuanced and subtle statements.\n"
+        f"Selected difficulty: {difficulty}.\n\n"
+        f"Create exactly {expected_count} True/False questions from the provided content.\n"
+        "Each item must be a JSON object with this exact shape:\n"
+        "{\"statement\":\"...\",\"answer\":true,\"explanation\":\"...\",\"topic\":\"...\"}\n"
+        "- The statement must be clear and factual.\n"
+        "- The answer must be a JSON boolean (true/false), not a string.\n"
+        "- The explanation must be 1-2 sentences.\n"
+        "- The topic must be a short topic label.\n"
+        "Return only a strict JSON array with no markdown fences and no extra text.\n\n"
+        f"Source content:\n{source_text}"
+    )
+
+    # Use per-call Gemini key if provided, otherwise fallback to global GEMINI_API_KEY
+    key = api_key or GEMINI_TRUEANDFALSE_API_KEY or GEMINI_API_KEY
+    if not key:
+        raise RuntimeError("GEMINI_TRUEANDFALSE_API_KEY or GEMINI_API_KEY is required for true/false generation")
+
+    items = generate_items_from_source(source_text, instruction, expected_count=expected_count, api_key=key)
+    return items
 
 
 def generate_match_the_pair_from_source_openrouter(
@@ -536,7 +569,7 @@ def generate_study_set_from_source(source_text, expected_count=10, difficulty="m
     }
 
 
-def answer_question_from_source(source_text, question):
+def answer_question_from_source(source_text, question, api_key=None):
     source_text = _trim_source_text(source_text)
     prompt = (
         "You are an educational tutor. Answer the student's question using ONLY the provided study content. "
@@ -546,8 +579,11 @@ def answer_question_from_source(source_text, question):
         f"Student question:\n{question}"
     )
     max_tokens = max(350, GEMINI_QA_MAX_TOKENS)
+    key = api_key or GEMINI_VOICE_API_KEY or GEMINI_API_KEY
+    if not key:
+        raise RuntimeError("GEMINI_VOICE_API_KEY or GEMINI_API_KEY is required for voice QA")
     for attempt in range(2):
-        body = call_gemini(prompt, max_output_tokens=max_tokens, response_mime_type="text/plain")
+        body = call_gemini(prompt, max_output_tokens=max_tokens, response_mime_type="text/plain", api_key=key)
         data = json.loads(body)
         text = extract_gemini_text(data).strip()
         if not text:

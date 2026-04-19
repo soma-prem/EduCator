@@ -664,16 +664,7 @@ function StudySetPage({ mode }) {
               }}
               disabled={regenerating}
             />
-            {(lockedMode ? initialTab === "mcq" : activeTab === "mcq") ? (
-              <>
-                <button type="button" className="ghost-btn" onClick={handleSmartRevision} disabled={revisionLoading}>
-                  {revisionLoading ? "Preparing..." : "Start Smart Revision"}
-                </button>
-                <button type="button" className="ghost-btn" onClick={() => setVoiceTutorOpen((prev) => !prev)}>
-                  {voiceTutorOpen ? "Close Voice Tutor" : "Start Voice Tutor"}
-                </button>
-              </>
-            ) : null}
+            {/* Smart Revision and Voice Tutor controls removed for MCQ generation page */}
           </div>
         </header>
 
