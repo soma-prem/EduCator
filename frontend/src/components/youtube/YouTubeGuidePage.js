@@ -34,7 +34,7 @@ function YouTubeGuidePage() {
 
   const buildFormData = () => {
     const formData = new FormData();
-    formData.append("maxResults", "10");
+    formData.append("maxResults", "12");
 
     const snapshot = savedStudySet;
     const sources = Array.isArray(snapshot?.sources) ? snapshot.sources : [];

@@ -1,108 +1,18 @@
 import json
-import os
 import re
-import time
-from urllib.parse import urlparse
-from urllib import error as urlerror
-from urllib import request as urlrequest
 
-from services.gemini_service import extract_gemini_text
+from services.gemini_service import GEMINI_MAX_TOKENS, call_gemini, extract_gemini_text
 from utils.mcq_utils import (
     _aggressive_quote_repair,
     _repair_json_text,
     extract_json_object,
 )
 
-GEMINI_MOCKTEST_API_KEY = os.getenv("GEMINI_MOCKTEST_API_KEY", "")
-GEMINI_EXAM_API_KEY = os.getenv("GEMINI_EXAM_API_KEY", "") or GEMINI_MOCKTEST_API_KEY or os.getenv("GEMINI_API_KEY", "")
-GEMINI_EXAM_MODEL = os.getenv("GEMINI_EXAM_MODEL", "gemini-2.5-flash")
-GEMINI_EXAM_MAX_TOKENS = int(os.getenv("GEMINI_EXAM_MAX_TOKENS", "3000"))
-GEMINI_EXAM_TIMEOUT_SECONDS = int(os.getenv("GEMINI_EXAM_TIMEOUT_SECONDS", "90"))
-GEMINI_EXAM_MAX_RETRIES = int(os.getenv("GEMINI_EXAM_MAX_RETRIES", "1"))
-
-
-def _friendly_network_error(endpoint: str, exc: Exception) -> str:
-    host = ""
-    try:
-        host = urlparse(endpoint).hostname or ""
-    except Exception:
-        host = ""
-
-    msg = str(exc) or exc.__class__.__name__
-    msg_lower = msg.lower()
-
-    # Windows often reports: "<urlopen error [Errno 11001] getaddrinfo failed>"
-    if "getaddrinfo failed" in msg_lower or "errno 11001" in msg_lower:
-        return (
-            f"Network/DNS error: cannot resolve {host or 'Gemini API host'}. "
-            "Check your internet connection, DNS settings, or proxy/firewall, then try again."
-        )
-
-    if isinstance(exc, urlerror.URLError):
-        reason = getattr(exc, "reason", None)
-        reason_text = str(reason) if reason is not None else msg
-        reason_lower = reason_text.lower()
-        if "timed out" in reason_lower:
-            return f"Network timeout reaching {host or 'Gemini API'}. Try again or increase GEMINI_EXAM_TIMEOUT_SECONDS."
-        if "name or service not known" in reason_lower:
-            return (
-                f"Network/DNS error: cannot resolve {host or 'Gemini API host'}. "
-                "Check your internet/DNS/proxy/firewall, then try again."
-            )
-        return f"Network error reaching {host or 'Gemini API'}: {reason_text}"
-
-    return f"Network error reaching {host or 'Gemini API'}: {msg}"
+GEMINI_EXAM_MAX_TOKENS = max(GEMINI_MAX_TOKENS, 3000)
 
 
 def _call_gemini_exam(prompt, max_output_tokens=GEMINI_EXAM_MAX_TOKENS):
-    """
-    Separate Gemini invocation that prefers GEMINI_EXAM_API_KEY.
-    Falls back to GEMINI_API_KEY to avoid production misconfiguration where only the general key is set.
-    """
-    if not GEMINI_EXAM_API_KEY:
-        raise RuntimeError("GEMINI_EXAM_API_KEY (or GEMINI_API_KEY fallback) is missing in backend environment")
-
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_EXAM_MODEL}:generateContent"
-        f"?key={GEMINI_EXAM_API_KEY}"
-    )
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": max_output_tokens,
-            "responseMimeType": "application/json",
-        },
-    }
-    payload_bytes = json.dumps(payload).encode("utf-8")
-
-    last_error = None
-    for attempt in range(GEMINI_EXAM_MAX_RETRIES + 1):
-        req = urlrequest.Request(
-            endpoint,
-            data=payload_bytes,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urlrequest.urlopen(req, timeout=GEMINI_EXAM_TIMEOUT_SECONDS) as response:
-                return response.read().decode("utf-8")
-        except urlerror.HTTPError as exc:
-            error_body = exc.read().decode("utf-8", errors="ignore")
-            last_error = f"Gemini Exam HTTP {exc.code}: {error_body}"
-            # Retry lightly on 429/503
-            if exc.code in {429, 503} and attempt < GEMINI_EXAM_MAX_RETRIES:
-                time.sleep(1.5 + attempt)
-                continue
-            raise RuntimeError(last_error) from exc
-        except Exception as exc:  # pragma: no cover
-            last_error = _friendly_network_error(endpoint, exc)
-            if attempt < GEMINI_EXAM_MAX_RETRIES:
-                time.sleep(1.0 + attempt)
-                continue
-            raise RuntimeError(last_error) from exc
-
-    raise RuntimeError(last_error or "Gemini exam request failed")
+    return call_gemini(prompt, max_output_tokens=max_output_tokens, response_mime_type="application/json")
 
 
 def _sanitize_sections(sections):

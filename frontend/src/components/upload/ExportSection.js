@@ -15,6 +15,8 @@ function ExportSection({ hasResults, exportingFormat, onExport, mode = "all" }) 
       ? "Download fill-in-the-blanks as PDF, CSV, or Text."
       : mode === "true_false"
       ? "Download true/false questions as PDF, CSV, or Text."
+      : mode === "match_the_pair"
+      ? "Download match-the-pair sets as PDF, CSV, or Text."
       : "Download MCQs/flashcards as PDF, CSV, or Text.";
 
   return (

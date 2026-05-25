@@ -46,6 +46,8 @@ body,
   align-items: center;
   justify-content: space-between;
   padding: 0.9rem 2.2rem;
+  min-height: 58px;
+  overflow: hidden;
   background: #ffffff;
   border-bottom: 1px solid var(--border);
 }
@@ -56,6 +58,8 @@ body,
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: 0.02em;
+  position: relative;
+  z-index: 4;
 }
 
 .rain-zone {
@@ -63,7 +67,7 @@ body,
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
   background: linear-gradient(
     to bottom,
     rgba(183, 226, 255, 0.12) 0%,
@@ -217,7 +221,7 @@ body,
   gap: 1rem;
   text-decoration: none;
   position: relative;
-  z-index: 2;
+  z-index: 4;
 }
 
 .nav-premium-crown {
@@ -560,6 +564,34 @@ button:disabled {
   overflow: hidden;
 }
 
+.notebook-chat {
+  background: #fbfdff;
+  border-color: rgba(31, 93, 143, 0.18);
+  box-shadow: 0 14px 28px rgba(17, 36, 60, 0.09);
+}
+
+.notebook-chat .card-header {
+  margin: -0.25rem -0.2rem 0.75rem;
+  padding: 0.2rem 0.2rem 0.85rem;
+  border-bottom: 1px solid rgba(17, 36, 60, 0.1);
+}
+
+.notebook-chat .card-title {
+  font-size: 1.12rem;
+  color: #17324d;
+}
+
+.notebook-chat .card-subtitle {
+  margin-bottom: 1rem;
+  color: #536b82;
+  line-height: 1.35;
+}
+
+.notebook-chat .notebook-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .notebook-card-body {
   overflow: auto;
   padding-right: 0.35rem;
@@ -661,17 +693,17 @@ button:disabled {
 .ai-guide-mode-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgba(217, 226, 239, 0.6);
-  border: 1px solid rgba(17, 36, 60, 0.14);
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #edf3f9;
+  border: 1px solid rgba(17, 36, 60, 0.12);
 }
 
 .ai-guide-mode-option {
-  width: 60px;
-  height: 50px;
-  border-radius: 999px;
+  width: 42px;
+  height: 36px;
+  border-radius: 10px;
   background: transparent;
   color: #234567;
   display: inline-flex;
@@ -690,14 +722,20 @@ button:disabled {
 }
 
 .ai-guide-mode-option svg {
-  width: 30px;
-  height: 30px;
+  width: 21px;
+  height: 21px;
 }
 
 .ai-guide-mode-option.active {
-  background: #1f4fd1;
+  background: #ffffff;
+  color: #1f4fd1;
+  box-shadow: 0 5px 12px rgba(17, 36, 60, 0.12);
+}
+
+.notebook-chat .ai-guide-mode-option.active {
+  background: #1f5d8f;
   color: #ffffff;
-  box-shadow: 0 12px 20px rgba(31, 79, 209, 0.22);
+  box-shadow: 0 8px 16px rgba(31, 93, 143, 0.24);
 }
 
 .ai-guide-mode-option:focus-within {
@@ -816,27 +854,55 @@ button:disabled {
 }
 
 .rag-input {
-  display: flex;
-  gap: 0.6rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
   align-items: center;
+  padding: 0.45rem;
+  background: #ffffff;
+  border: 1px solid rgba(17, 36, 60, 0.13);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(17, 36, 60, 0.06);
 }
 
 .rag-input input {
-  flex: 1;
-  border: 1px solid rgba(17, 36, 60, 0.2);
-  border-radius: 12px;
-  padding: 0.65rem 0.75rem;
+  min-width: 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 0.7rem 0.75rem;
   font-size: 0.95rem;
+  color: #1b3045;
+  background: #f5f8fb;
+}
+
+.rag-input input:focus {
+  outline: 2px solid rgba(31, 93, 143, 0.22);
+  background: #ffffff;
+}
+
+.rag-input button {
+  height: 42px;
+  min-width: 72px;
+  border-radius: 10px;
+  padding: 0 0.95rem;
+  background: #1f5d8f;
+}
+
+.rag-input button:hover {
+  background: #17496f;
 }
 
 .rag-answer {
-  margin-top: 0.85rem;
-  padding: 0.85rem 0.9rem;
+  margin-top: 0.9rem;
+  padding: 1rem;
   border-radius: 14px;
-  border: 1px dashed rgba(17, 36, 60, 0.2);
-  background: #f5f8ff;
-  color: #405874;
-  min-height: 140px;
+  border: 1px solid rgba(17, 36, 60, 0.1);
+  background: #ffffff;
+  color: #334b63;
+  min-height: 180px;
+  line-height: 1.5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 8px 18px rgba(17, 36, 60, 0.05);
+  white-space: pre-wrap;
 }
 
 .tools-stack {
@@ -1730,11 +1796,17 @@ button:disabled {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 12px;
   border: 1px solid rgba(17, 36, 60, 0.12);
+  display: block;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.5;
   font-weight: 600;
   color: #1a2e44;
   font-family: Arial, "Helvetica Neue", sans-serif;
+  text-align: left;
 }
 
 .summary-speak-btn {

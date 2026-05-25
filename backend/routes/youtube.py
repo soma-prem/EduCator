@@ -84,7 +84,7 @@ def _youtube_search(api_key: str, query: str, max_results: int = 8) -> List[dict
         "part": "snippet",
         "q": query,
         "type": "video",
-        "maxResults": max(1, min(int(max_results or 8), 12)),
+        "maxResults": max(1, min(int(max_results or 8), 50)),
         "safeSearch": "moderate",
         "videoEmbeddable": "true",
         "order": "viewCount",
@@ -208,10 +208,10 @@ def _youtube_channel_statistics(api_key: str, channel_ids: List[str]) -> Dict[st
 
 def _sort_key(video: dict) -> Tuple[int, int, int, int]:
     return (
-        _safe_int(video.get("subscriberCount")),
         _safe_int(video.get("viewCount")),
         _safe_int(video.get("likeCount")),
         _safe_int(video.get("commentCount")),
+        _safe_int(video.get("subscriberCount")),
     )
 
 
@@ -241,7 +241,8 @@ async def recommend_youtube(request: Request):
         preview = str(meta.get("sourcePreview") or "").strip()
         query = _derive_query(source_text, preview=preview)
 
-        videos = _youtube_search(api_key, query, max_results=max_results)
+        candidate_count = max(max_results, 25)
+        videos = _youtube_search(api_key, query, max_results=candidate_count)
         if videos:
             stats_by_video = _youtube_video_statistics(api_key, [v.get("videoId") for v in videos])
             stats_by_channel = _youtube_channel_statistics(api_key, [v.get("channelId") for v in videos])
@@ -260,7 +261,7 @@ async def recommend_youtube(request: Request):
                         "subscriberCount": _safe_int(cstats.get("subscriberCount")),
                     }
                 )
-            videos = sorted(enriched, key=_sort_key, reverse=True)
+            videos = sorted(enriched, key=_sort_key, reverse=True)[:max_results]
         return {"query": query, "videos": videos, "meta": {"sourcePreview": preview}}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)

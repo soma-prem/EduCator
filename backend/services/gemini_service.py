@@ -9,22 +9,14 @@ from utils.mcq_utils import extract_json_array, extract_json_object
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GROQ_MCQ_API_KEY = os.getenv("GROQ_MCQ_API_KEY", "")
-GROQ_FLASHCARD_API_KEY = os.getenv("GROQ_FLASHCARD_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "1"))
 GEMINI_MAX_TOKENS = int(os.getenv("GEMINI_MAX_TOKENS", "800"))
-GEMINI_SUMMARY_MAX_TOKENS = int(os.getenv("GEMINI_SUMMARY_MAX_TOKENS", "650"))
+GEMINI_SUMMARY_MAX_TOKENS = int(os.getenv("GEMINI_SUMMARY_MAX_TOKENS", "1200"))
 GEMINI_STUDY_SET_MAX_TOKENS = int(os.getenv("GEMINI_STUDY_SET_MAX_TOKENS", "2200"))
 GEMINI_QA_MAX_TOKENS = int(os.getenv("GEMINI_QA_MAX_TOKENS", "900"))
 GEMINI_SOURCE_CHAR_LIMIT = int(os.getenv("GEMINI_SOURCE_CHAR_LIMIT", "10000"))
 GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "90"))
-GROQ_TRUEANDFALSE_API_KEY = os.getenv("GROQ_TRUEANDFALSE_API_KEY", "")
-
-GEMINI_VOICE_API_KEY = os.getenv("GEMINI_VOICE_API_KEY", "")
-GEMINI_FILLIN_API_KEY = os.getenv("GEMINI_FILLIN_API_KEY", "")
-GEMINI_SUMMARY_API_KEY = os.getenv("GEMINI_SUMMARY_API_KEY", "")
-GEMINI_TEXTAI_API_KEY = os.getenv("GEMINI_TEXTAI_API_KEY", "")
 
 
 def _looks_truncated(text):
@@ -222,9 +214,9 @@ def generate_fill_in_the_blanks_from_source(source_text, expected_count=10, diff
         f"Source content:\n{source_text}"
     )
 
-    key = api_key or GEMINI_FILLIN_API_KEY or GEMINI_API_KEY
+    key = api_key or GEMINI_API_KEY
     if not key:
-        raise RuntimeError("GEMINI_FILLIN_API_KEY or GEMINI_API_KEY is required for fill-in-the-blanks generation")
+        raise RuntimeError("GEMINI_API_KEY is required for fill-in-the-blanks generation")
 
     items = generate_items_from_source(source_text, instruction, expected_count=expected_count, api_key=key)
     return items
@@ -249,9 +241,9 @@ def generate_true_false_from_source(source_text, expected_count=10, difficulty="
         f"Source content:\n{source_text}"
     )
 
-    key = api_key or GROQ_TRUEANDFALSE_API_KEY or GEMINI_API_KEY
+    key = api_key or GEMINI_API_KEY
     if not key:
-        raise RuntimeError("GROQ_TRUEANDFALSE_API_KEY or GEMINI_API_KEY is required for true/false generation")
+        raise RuntimeError("GEMINI_API_KEY is required for true/false generation")
 
     items = generate_items_from_source(source_text, instruction, expected_count=expected_count, api_key=key)
     return items
@@ -260,25 +252,46 @@ def generate_true_false_from_source(source_text, expected_count=10, difficulty="
 def generate_summary_from_source(source_text):
     source_text = _trim_source_text(source_text)
     prompt = (
-        "Create a detailed, student-friendly study summary from the provided content.\n"
-        "- Return 12-16 bullet points as plain text.\n"
-        "- Each bullet should be a complete idea (definition, key fact, cause/effect, or example).\n"
-        "- Keep it grounded strictly in the provided content.\n"
-        "Do not include markdown fences or extra commentary.\n\n"
+        "Create a clear, medium-length, exam-ready study summary from the provided content.\n"
+        "Write for a student who needs useful revision notes without an overly long answer.\n\n"
+        "Return plain text only. Do not use markdown code fences. Do not mention that you are an AI.\n\n"
+        "Length target: 500-800 words maximum. Be complete but concise.\n\n"
+        "Required structure:\n"
+        "Title: A short, specific title based on the source.\n\n"
+        "Overview:\n"
+        "- 2-3 sentences explaining what the material is about and why it matters.\n\n"
+        "Detailed Summary:\n"
+        "- 7-10 substantial bullet points.\n"
+        "- Each bullet must explain a full idea in 1-2 sentences.\n"
+        "- Include definitions, cause/effect links, comparisons, formulas or steps only when they appear in the source.\n"
+        "- Avoid filler and repeated points.\n\n"
+        "Key Terms:\n"
+        "- List 5-8 important terms with clear one-line definitions.\n\n"
+        "Exam Focus:\n"
+        "- List 3-5 likely exam points or facts worth memorizing.\n\n"
+        "Keep every claim grounded strictly in the provided content. If the source is short, expand explanations only from what is present; do not invent facts.\n\n"
         f"Source content:\n{source_text}"
     )
 
-    key = GEMINI_SUMMARY_API_KEY or GEMINI_API_KEY
+    key = GEMINI_API_KEY
     if not key:
-        raise RuntimeError("GEMINI_SUMMARY_API_KEY or GEMINI_API_KEY is required for summary generation")
-    body = call_gemini(
-        prompt,
-        max_output_tokens=GEMINI_SUMMARY_MAX_TOKENS,
-        response_mime_type="text/plain",
-        api_key=key,
-    )
-    data = json.loads(body)
-    text = extract_gemini_text(data).strip()
+        raise RuntimeError("GEMINI_API_KEY is required for summary generation")
+    token_budgets = [
+        max(GEMINI_SUMMARY_MAX_TOKENS, 1800),
+        max(GEMINI_SUMMARY_MAX_TOKENS, 3200),
+    ]
+    text = ""
+    for token_budget in token_budgets:
+        body = call_gemini(
+            prompt,
+            max_output_tokens=token_budget,
+            response_mime_type="text/plain",
+            api_key=key,
+        )
+        data = json.loads(body)
+        text = extract_gemini_text(data).strip()
+        if text and not (_is_truncated_generation(data, text) or _looks_truncated(text)):
+            break
 
     if not text:
         raise RuntimeError("Model returned empty summary")
@@ -297,12 +310,13 @@ def generate_study_set_from_source(source_text, expected_count=10, difficulty="m
         "Create a study set from the provided content.\n"
         f"- Return exactly {expected_count} MCQs.\n"
         f"- Return exactly {expected_count} flashcards.\n"
-        "- Return a summary with 5-7 bullet points in one plain text string.\n\n"
+        "- Return a useful study summary with 6-8 complete bullet points in one plain text string.\n"
+        "- The summary should include the main ideas, key terms, relationships, and exam-relevant points from the source.\n\n"
         "Output must be a strict JSON object with this exact shape:\n"
         "{"
         '"mcqs":[{"question":"...","options":["...","...","...","..."],"answer":"...","explanation":"...","topic":"..."}],'
         '"flashcards":[{"front":"...","back":"...","topic":"..."}],'
-        '"summary":"- ...\\n- ...\\n- ..."'
+        '"summary":"- complete study point...\\n- complete study point...\\n- complete study point..."'
         "}\n"
         "For each MCQ, \"explanation\" must briefly explain why the correct answer is correct.\n"
         "For each MCQ, \"topic\" must be a short topic label.\n"
@@ -365,9 +379,9 @@ def answer_question_from_source(source_text, question, api_key=None):
         f"Student question:\n{question}"
     )
     max_tokens = max(350, GEMINI_QA_MAX_TOKENS)
-    key = api_key or GEMINI_VOICE_API_KEY or GEMINI_API_KEY
+    key = api_key or GEMINI_API_KEY
     if not key:
-        raise RuntimeError("GEMINI_VOICE_API_KEY or GEMINI_API_KEY is required for voice QA")
+        raise RuntimeError("GEMINI_API_KEY is required for text assistant")
     for attempt in range(2):
         body = call_gemini(prompt, max_output_tokens=max_tokens, response_mime_type="text/plain", api_key=key)
         data = json.loads(body)

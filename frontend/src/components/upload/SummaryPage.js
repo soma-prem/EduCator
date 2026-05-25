@@ -161,12 +161,6 @@ function SummaryPage() {
           <h1>Study Summary</h1>
           <p>Your generated summary in one place.</p>
         </header>
-        <ExportSection
-          hasResults={Boolean(summary)}
-          exportingFormat={exportingFormat}
-          onExport={handleExport}
-          mode="summary"
-        />
         <SummarySection
           summary={summary}
           onSpeak={handleSpeakSummary}
@@ -178,6 +172,12 @@ function SummaryPage() {
           ttsLanguages={ttsLanguages}
           audioLocked={!premium.canUse("audio_summary")}
           onUpgrade={() => navigate("/premium")}
+        />
+        <ExportSection
+          hasResults={Boolean(summary)}
+          exportingFormat={exportingFormat}
+          onExport={handleExport}
+          mode="summary"
         />
         <div style={{ textAlign: "center", marginTop: "1rem" }}>
           <button type="button" onClick={handleGoBack}>

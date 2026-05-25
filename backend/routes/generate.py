@@ -17,11 +17,6 @@ os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 REFILL_POOL_SIZE = int(os.getenv("REFILL_POOL_SIZE", "10"))
 
 from services.gemini_service import (
-    GEMINI_API_KEY,
-    GROQ_MCQ_API_KEY,
-    GROQ_FLASHCARD_API_KEY,
-    GEMINI_FILLIN_API_KEY,
-    GROQ_TRUEANDFALSE_API_KEY,
     generate_items_from_source,
     generate_fill_in_the_blanks_from_source,
     generate_true_false_from_source,
@@ -516,9 +511,6 @@ async def generate_mcqs(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        mcq_api_key = GROQ_MCQ_API_KEY or GEMINI_API_KEY
-        if not mcq_api_key:
-            raise RuntimeError("GROQ_MCQ_API_KEY or GEMINI_API_KEY is required for MCQ generation")
         mcqs = _normalize_mcq_items(generate_items_from_source(source_text, (
             "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
             "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
@@ -527,7 +519,7 @@ async def generate_mcqs(request: Request):
             "Each item must be: "
             "{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
             "The explanation should briefly explain why the correct answer is right."
-        ), expected_count=count, api_key=mcq_api_key))
+        ), expected_count=count))
         mcq_set_id = store_mcq_session(mcqs)
         update_mcq_session(mcq_set_id, items=mcqs, flashcards=[], source_text=source_text)
         return {"mcqs": mcqs, "mcqSetId": mcq_set_id}
@@ -545,16 +537,13 @@ async def generate_flashcards(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        api_key = GROQ_FLASHCARD_API_KEY or GEMINI_API_KEY
-        if not api_key:
-            raise RuntimeError("GROQ_FLASHCARD_API_KEY or GEMINI_API_KEY is required for flashcard generation")
         flashcard_instruction = (
             "Difficulty: easy = direct definitions; medium = conceptual Q/A; hard = nuanced, tricky, and application-focused.\n"
             f"Selected difficulty: {difficulty}.\n\n"
             f"Create exactly {count} flashcards from the provided content. "
             "Each item must be: {\"front\":\"...\",\"back\":\"...\",\"topic\":\"...\"}."
         )
-        flashcards = generate_items_from_source(source_text, flashcard_instruction, expected_count=count, api_key=api_key)
+        flashcards = generate_items_from_source(source_text, flashcard_instruction, expected_count=count)
         return {"flashcards": flashcards}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
@@ -570,10 +559,7 @@ async def generate_fill_blanks(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        api_key = GEMINI_FILLIN_API_KEY or GEMINI_API_KEY
-        if not api_key:
-            raise RuntimeError("GEMINI_FILLIN_API_KEY or GEMINI_API_KEY is required for fill-in-the-blanks generation")
-        items = generate_fill_in_the_blanks_from_source(source_text, expected_count=count, difficulty=difficulty, api_key=api_key)
+        items = generate_fill_in_the_blanks_from_source(source_text, expected_count=count, difficulty=difficulty)
         return {"fillBlanks": items}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
@@ -589,10 +575,7 @@ async def generate_true_false(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        api_key = GROQ_TRUEANDFALSE_API_KEY or GEMINI_API_KEY
-        if not api_key:
-            raise RuntimeError("GROQ_TRUEANDFALSE_API_KEY or GEMINI_API_KEY is required for true/false generation")
-        items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty, api_key=api_key)
+        items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty)
         return {"trueFalse": items}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)

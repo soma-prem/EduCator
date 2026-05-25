@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { API_BASE } from "../../config/api";
+import { callClaude } from "../../utils/callClaude";
 import "./MockTestPage.css";
 import usePremium from "../../premium/usePremium";
 import UpgradeNotice from "../premium/UpgradeNotice";
@@ -95,22 +96,7 @@ function MockTestPage() {
         formData.append("pastFile", pastFile);
       }
 
-      const response = await fetch(`${API_BASE}/api/exam/mock`, {
-        method: "POST",
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-
-      const raw = await response.text();
-      let data = null;
-      try {
-        data = raw ? JSON.parse(raw) : null;
-      } catch (_err) {
-        data = null;
-      }
-      if (!response.ok) {
-        throw new Error(data?.error || raw || "Failed to generate mock exam");
-      }
+      const data = await callClaude("mocktest", formData, { authToken: token });
 
       const nextMock = data?.mockExam || {};
       const normalizedMock = {

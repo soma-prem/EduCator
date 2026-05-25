@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { API_BASE } from "../../config/api";
 import { auth } from "../../firebase";
+import { callClaude } from "../../utils/callClaude";
 import McqSection from "./McqSection";
 import FlashcardSection from "./FlashcardSection";
 import ExportSection from "./ExportSection";
@@ -397,14 +398,7 @@ function StudySetPage({ mode }) {
     setRegenerating(true);
     try {
       if (currentMode === "mcq") {
-        const formData = baseForm;
-        formData.append("tool", "mcq");
-        formData.append("count", "12");
-        const response = await fetch(`${API_BASE}/api/tools/generate`, { method: "POST", body: formData });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to regenerate MCQs");
-        }
+        const data = await callClaude("mcq", baseForm, { difficulty, count: 12 });
         const nextMcqs = Array.isArray(data?.mcqs) ? data.mcqs : [];
         if (nextMcqs.length === 0) {
           throw new Error("Server returned no MCQs");
@@ -424,14 +418,7 @@ function StudySetPage({ mode }) {
       }
 
       if (currentMode === "flashcards") {
-        const formData = baseForm;
-        formData.append("tool", "flashcards");
-        formData.append("count", "12");
-        const response = await fetch(`${API_BASE}/api/tools/generate`, { method: "POST", body: formData });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to regenerate flashcards");
-        }
+        const data = await callClaude("flashcard", baseForm, { difficulty, count: 12 });
         const nextFlashcards = Array.isArray(data?.flashcards) ? data.flashcards : [];
         if (nextFlashcards.length === 0) {
           throw new Error("Server returned no flashcards");
@@ -668,13 +655,6 @@ function StudySetPage({ mode }) {
           </div>
         </header>
 
-        <ExportSection
-          hasResults={mcqs.length > 0 || flashcards.length > 0}
-          exportingFormat={exportingFormat}
-          onExport={handleExport}
-          mode={lockedMode ? initialTab : "all"}
-        />
-
         {!lockedMode && (
           <div className="study-tabs">
             <button
@@ -809,6 +789,13 @@ function StudySetPage({ mode }) {
         )}
 
         {voiceTutorOpen && <VoiceTutorSection apiBase={API_BASE} />}
+
+        <ExportSection
+          hasResults={mcqs.length > 0 || flashcards.length > 0}
+          exportingFormat={exportingFormat}
+          onExport={handleExport}
+          mode={lockedMode ? initialTab : "all"}
+        />
 
         <div className="other-source-wrap dual-actions" style={{ marginTop: "0.9rem" }}>
           <button type="button" className="ghost-btn" onClick={() => navigate("/uplod")}>

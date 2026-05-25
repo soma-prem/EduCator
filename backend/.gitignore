@@ -8,9 +8,31 @@ venv/
 # uploads / runtime
 temp_uploads/
 
-# env / secrets
+# env / secrets (never commit real values)
 .env
 .env.*
+!.env.example
+!.env.sample
+!.env.template
+.env.local
+.env.*.local
+.envrc
+
+# Firebase / GCP
 serviceAccountKey.json
 *firebase-adminsdk*.json
+serviceAccount*.json
+service-account*.json
+google-credentials*.json
+gcp-credentials*.json
+client_secret*.json
 
+# keys / certs
+*.pem
+*.key
+*.p12
+*.pfx
+
+# local overrides
+docker-compose.override.yml
+.aws/

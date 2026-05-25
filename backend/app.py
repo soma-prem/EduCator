@@ -25,6 +25,7 @@ from routes.diag import router as diag_router  # noqa: E402
 from routes.export import router as export_router  # noqa: E402
 from routes.generate import router as generate_router  # noqa: E402
 from routes.history import router as history_router  # noqa: E402
+from routes.ai import router as ai_router  # noqa: E402
 from routes.misc import router as misc_router  # noqa: E402
 from routes.analyze import router as analyze_router  # noqa: E402
 from routes.qa import router as qa_router  # noqa: E402
@@ -53,6 +54,7 @@ app.add_middleware(
 
 app.include_router(misc_router)
 app.include_router(analyze_router)
+app.include_router(ai_router)
 app.include_router(tools_router)
 app.include_router(generate_router)
 app.include_router(verify_router)

@@ -75,7 +75,7 @@ def _require_stripe():
     if stripe is None:
         raise RuntimeError("stripe package is not installed on backend")
     if not STRIPE_SECRET_KEY:
-        raise RuntimeError("STRIPE_SECRET_KEY is missing in backend environment")
+        raise RuntimeError("Stripe checkout is not configured. Add STRIPE_SECRET_KEY to backend/.env and restart the backend.")
     stripe.api_key = STRIPE_SECRET_KEY
 
 

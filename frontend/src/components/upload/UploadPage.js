@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../../config/api";
 import InputSection from "./InputSection";
 import VoiceQASection from "./VoiceQASection";
-import generateWithTool from "./generateTool";
+import { callClaude } from "../../utils/callClaude";
 import usePremium from "../../premium/usePremium";
 import { requiredPlanForFeature } from "../../premium/plans";
 import { auth } from "../../firebase";
@@ -337,12 +337,14 @@ function UploadPage({ user }) {
       hadFlashcards: flashcards.length > 0,
       hadFillBlanks: fillBlanks.length > 0,
       hadTrueFalse: trueFalse.length > 0,
+      hadMatchThePair: matchThePair.length > 0,
       mcqTotal: mcqs.length,
       mcqCorrect: 0,
       mcqs,
       flashcards,
       fillBlanks,
       trueFalse,
+      matchThePair: { sets: matchThePair, setCount: 5, pairsPerSet: 5 },
       summary,
     };
     const response = await fetch(`${API_BASE}/api/history/session`, {
@@ -455,19 +457,8 @@ function UploadPage({ user }) {
     if (!formData) return;
     setRagLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/qa/source`, { method: "POST", body: formData });
-      const rawText = await response.text();
-      let data = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch (_error) {
-        data = null;
-      }
-      if (!response.ok) {
-        const message = data?.error || rawText || "Failed to answer question";
-        throw new Error(message);
-      }
-      setRagAnswer(String(data?.answer || rawText || "").trim() || "No answer returned.");
+      const data = await callClaude("textai", formData);
+      setRagAnswer(String(data?.answer || "").trim() || "No answer returned.");
     } catch (error) {
       console.error(error);
       const message = getReadableErrorMessage(error, "Failed to answer question");
@@ -507,19 +498,8 @@ function UploadPage({ user }) {
     if (!formData) return;
     try {
       setVoiceLoading(true);
-      const response = await fetch(`${API_BASE}/api/qa/source`, { method: "POST", body: formData });
-      const rawText = await response.text();
-      let data = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch (_error) {
-        data = null;
-      }
-      if (!response.ok) {
-        const message = data?.error || rawText || "Failed to answer question";
-        throw new Error(message);
-      }
-      const answerText = String(data?.answer || rawText || "").trim() || "No answer returned.";
+      const data = await callClaude("textai", formData);
+      const answerText = String(data?.answer || "").trim() || "No answer returned.";
       setVoiceAnswer(answerText);
       const ttsResponse = await fetch(`${API_BASE}/api/tts`, {
         method: "POST",
@@ -900,7 +880,7 @@ function UploadPage({ user }) {
         const saved = readStudySet();
         difficulty = String(saved?.difficultyByMode?.mcq || "medium");
       } catch (_error) {}
-      const data = await generateWithTool({ tool: "mcq", source: activeSource, difficulty, count: 12 });
+      const data = await callClaude("mcq", activeSource, { difficulty, count: 12 });
       const normalizeArray = (value) => {
         if (Array.isArray(value)) return value;
         if (typeof value === "string") {
@@ -951,7 +931,7 @@ function UploadPage({ user }) {
         const saved = readStudySet();
         difficulty = String(saved?.difficultyByMode?.flashcards || "medium");
       } catch (_error) {}
-      const data = await generateWithTool({ tool: "flashcards", source: activeSource, difficulty, count: 12, includeImages: true });
+      const data = await callClaude("flashcard", activeSource, { difficulty, count: 12 });
       const normalizeArray = (value) => {
         if (Array.isArray(value)) return value;
         if (typeof value === "string") {
@@ -1007,7 +987,7 @@ function UploadPage({ user }) {
         difficulty = String(saved?.difficultyByMode?.fill_blanks || "medium");
       } catch (_error) {}
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const data = await generateWithTool({ tool: "fill_blanks", source: activeSource, difficulty, count: 12, authToken: token });
+      const data = await callClaude("fillblank", activeSource, { difficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.fillBlanks) ? data.fillBlanks : [];
       if (items.length === 0) {
         throw new Error("Server returned no fill-in-the-blanks");
@@ -1052,7 +1032,7 @@ function UploadPage({ user }) {
         difficulty = String(saved?.difficultyByMode?.true_false || "medium");
       } catch (_error) {}
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const data = await generateWithTool({ tool: "true_false", source: activeSource, difficulty, count: 12, authToken: token });
+      const data = await callClaude("truefalse", activeSource, { difficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.trueFalse) ? data.trueFalse : [];
       if (items.length === 0) {
         throw new Error("Server returned no true/false questions");
@@ -1091,15 +1071,12 @@ function UploadPage({ user }) {
     try {
       setMatchThePairGenerating(true);
       const activeSource = getActiveSource();
-      const savedRaw = sessionStorage.getItem("educator_study_set");
       let difficulty = "medium";
-      if (savedRaw) {
-        try {
-          const saved = JSON.parse(savedRaw);
-          difficulty = String(saved?.difficultyByMode?.match_the_pair || "medium");
-        } catch (_error) {}
-      }
-      const data = await generateWithTool({ tool: "match_the_pair", source: activeSource, difficulty, count: 25 });
+      try {
+        const saved = readStudySet();
+        difficulty = String(saved?.difficultyByMode?.match_the_pair || "medium");
+      } catch (_error) {}
+      const data = await callClaude("matchpair", activeSource, { difficulty, count: 25 });
       const sets = Array.isArray(data?.matchThePair?.sets) ? data.matchThePair.sets : [];
       if (sets.length === 0) {
         throw new Error("Server returned no match-the-pair sets");
@@ -1114,9 +1091,10 @@ function UploadPage({ user }) {
         summary,
         mcqSetId,
       });
-      sessionStorage.setItem("educator_study_set", JSON.stringify(payload));
+      writeStudySet(payload);
       setMatchThePairPayload(payload);
       setMatchThePairReady(true);
+      saveCurrentSession().catch((error) => console.warn("Auto-save failed", error));
       toast.success("Match-the-pair generated. Click to open.");
     } catch (error) {
       console.error(error);
@@ -1197,7 +1175,7 @@ function UploadPage({ user }) {
     try {
       setSummaryGenerating(true);
       const activeSource = getActiveSource();
-      const data = await generateWithTool({ tool: "summary", source: activeSource, difficulty: "medium", count: 20 });
+      const data = await callClaude("summary", activeSource, { difficulty: "medium", count: 20 });
       const nextSummary = String(data?.summary || "").trim();
       setSummary(nextSummary);
       const payload = buildStudySetPayload({
@@ -1258,14 +1236,6 @@ function UploadPage({ user }) {
       </div>
       <section className="upload-card upload-layout notebook-shell">
         <header className="upload-header">
-          <div className="upload-header-actions">
-            <button type="button" className="history-btn" onClick={() => navigate("/history")}>
-              History
-            </button>
-            <button type="button" className="analytics-btn" onClick={() => navigate("/analytics")}>
-              Analytics
-            </button>
-          </div>
           <h1>{displayName}, Welcome!! Here is the EduCator workspace</h1>
         </header>
 

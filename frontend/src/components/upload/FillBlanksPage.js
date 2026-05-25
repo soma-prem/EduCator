@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { API_BASE } from "../../config/api";
 import { auth } from "../../firebase";
+import { callClaude } from "../../utils/callClaude";
 import DifficultySelect, { normalizeDifficulty } from "./DifficultySelect";
 import ExportSection from "./ExportSection";
 import KnowledgeGapSection from "./KnowledgeGapSection";
@@ -126,18 +127,8 @@ function FillBlanksPage() {
     }
     setRegenerating(true);
     try {
-      formData.append("tool", "fill_blanks");
-      formData.append("count", "12");
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const response = await fetch(`${API_BASE}/api/tools/generate`, {
-        method: "POST",
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to regenerate fill-in-the-blanks");
-      }
+      const data = await callClaude("fillblank", formData, { difficulty: nextDifficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.fillBlanks) ? data.fillBlanks : [];
       if (items.length === 0) {
         throw new Error("Server returned no fill-in-the-blanks questions");
@@ -277,12 +268,6 @@ function FillBlanksPage() {
             disabled={regenerating}
           />
         </header>
-        <ExportSection
-          hasResults={fillBlanks.length > 0}
-          exportingFormat={exportingFormat}
-          onExport={handleExport}
-          mode="fill_blanks"
-        />
         <FillBlanksSection
           items={fillBlanks}
           answers={answers}
@@ -296,6 +281,12 @@ function FillBlanksPage() {
           onAnalyze={handleAnalyzeKnowledgeGaps}
           locked={!premium.canUse("knowledge_gap")}
           onUpgrade={() => navigate("/premium")}
+        />
+        <ExportSection
+          hasResults={fillBlanks.length > 0}
+          exportingFormat={exportingFormat}
+          onExport={handleExport}
+          mode="fill_blanks"
         />
         <div className="other-source-wrap dual-actions" style={{ marginTop: "0.9rem" }}>
           <button type="button" className="ghost-btn" onClick={() => navigate("/uplod")}>

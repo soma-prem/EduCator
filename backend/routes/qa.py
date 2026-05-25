@@ -9,9 +9,6 @@ from utils.extractors import extract_docx_text, extract_pdf_text, extract_pptx_t
 router = APIRouter()
 
 from services.gemini_service import (
-    GEMINI_VOICE_API_KEY,
-    GEMINI_TEXTAI_API_KEY,
-    GEMINI_API_KEY,
     answer_question_from_source,
 )
 
@@ -131,18 +128,7 @@ async def answer_question_from_upload(request: Request):
             return JSONResponse(content={"error": "source text is required"}, status_code=400)
 
         context = _retrieve_relevant_context(source_text, question, top_k=3)
-        # Text assistant: prefer GEMINI_TEXTAI_API_KEY, fall back to GEMINI_API_KEY.
-        if mode == "voice":
-            api_key = GEMINI_VOICE_API_KEY or GEMINI_API_KEY
-            if not api_key:
-                raise RuntimeError("GEMINI_VOICE_API_KEY or GEMINI_API_KEY is required for voice assistant")
-            answer = answer_question_from_source(context, question, api_key=api_key)
-        else:
-            # Non-voice/text assistant path
-            api_key = GEMINI_TEXTAI_API_KEY or GEMINI_API_KEY
-            if not api_key:
-                raise RuntimeError("GEMINI_TEXTAI_API_KEY or GEMINI_API_KEY is required for text assistant")
-            answer = answer_question_from_source(context, question, api_key=api_key)
+        answer = answer_question_from_source(context, question)
         return {"question": question, "answer": answer}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)

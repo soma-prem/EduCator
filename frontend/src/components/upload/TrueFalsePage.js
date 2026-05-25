@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { API_BASE } from "../../config/api";
 import { auth } from "../../firebase";
+import { callClaude } from "../../utils/callClaude";
 import DifficultySelect, { normalizeDifficulty } from "./DifficultySelect";
 import ExportSection from "./ExportSection";
 import KnowledgeGapSection from "./KnowledgeGapSection";
@@ -125,18 +126,8 @@ function TrueFalsePage() {
     }
     setRegenerating(true);
     try {
-      formData.append("tool", "true_false");
-      formData.append("count", "12");
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-      const response = await fetch(`${API_BASE}/api/tools/generate`, {
-        method: "POST",
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to regenerate true/false");
-      }
+      const data = await callClaude("truefalse", formData, { difficulty: nextDifficulty, count: 12, authToken: token });
       const items = Array.isArray(data?.trueFalse) ? data.trueFalse : [];
       if (items.length === 0) {
         throw new Error("Server returned no true/false questions");
@@ -268,12 +259,6 @@ function TrueFalsePage() {
             disabled={regenerating}
           />
         </header>
-        <ExportSection
-          hasResults={trueFalse.length > 0}
-          exportingFormat={exportingFormat}
-          onExport={handleExport}
-          mode="true_false"
-        />
         <TrueFalseSection items={trueFalse} answers={answers} onAnswer={(index, value) => setAnswers((prev) => ({ ...prev, [index]: value }))} />
         <KnowledgeGapSection
           result={knowledgeGapResult}
@@ -281,6 +266,12 @@ function TrueFalsePage() {
           onAnalyze={handleAnalyzeKnowledgeGaps}
           locked={!premium.canUse("knowledge_gap")}
           onUpgrade={() => navigate("/premium")}
+        />
+        <ExportSection
+          hasResults={trueFalse.length > 0}
+          exportingFormat={exportingFormat}
+          onExport={handleExport}
+          mode="true_false"
         />
         <div className="other-source-wrap dual-actions" style={{ marginTop: "0.9rem" }}>
           <button type="button" className="ghost-btn" onClick={() => navigate("/uplod")}>

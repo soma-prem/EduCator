@@ -184,7 +184,33 @@ def _build_pdf_bytes(entries):
     return output.getvalue()
 
 
-def _render_csv(mcqs, flashcards, fill_blanks, true_false):
+def _normalize_match_pair_sets(match_the_pair):
+    if isinstance(match_the_pair, dict):
+        raw_sets = match_the_pair.get("sets")
+    else:
+        raw_sets = match_the_pair
+    raw_sets = raw_sets if isinstance(raw_sets, list) else []
+
+    sets = []
+    for set_idx, raw_set in enumerate(raw_sets, start=1):
+        if not isinstance(raw_set, dict):
+            continue
+        pairs = raw_set.get("pairs")
+        pairs = pairs if isinstance(pairs, list) else []
+        normalized_pairs = []
+        for pair in pairs:
+            if not isinstance(pair, dict):
+                continue
+            left = _as_text(pair.get("left"))
+            right = _as_text(pair.get("right"))
+            if left and right:
+                normalized_pairs.append({"left": left, "right": right})
+        if normalized_pairs:
+            sets.append({"title": _as_text(raw_set.get("title")) or f"Set {set_idx}", "pairs": normalized_pairs})
+    return sets
+
+
+def _render_csv(mcqs, flashcards, fill_blanks, true_false, match_pair_sets):
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
@@ -309,10 +335,37 @@ def _render_csv(mcqs, flashcards, fill_blanks, true_false):
             ]
         )
 
+    pair_index = 1
+    for set_item in match_pair_sets:
+        for pair in set_item["pairs"]:
+            writer.writerow(
+                [
+                    "match_the_pair",
+                    pair_index,
+                    set_item["title"],
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    pair["left"],
+                    pair["right"],
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            pair_index += 1
+
     return output.getvalue().encode("utf-8")
 
 
-def _render_quiz_text(mcqs, flashcards, fill_blanks, true_false, summary):
+def _render_quiz_text(mcqs, flashcards, fill_blanks, true_false, match_pair_sets, summary):
     lines = ["EduCator Quiz Export", ""]
     if summary:
         lines.extend(["Summary:", _as_text(summary), ""])
@@ -376,10 +429,19 @@ def _render_quiz_text(mcqs, flashcards, fill_blanks, true_false, summary):
                 lines.append(f"   Why: {explanation}")
             lines.append("")
 
+    if match_pair_sets:
+        lines.append("Match the Pair")
+        lines.append("")
+        for set_idx, set_item in enumerate(match_pair_sets, start=1):
+            lines.append(f"{set_idx}. {set_item['title']}")
+            for pair_idx, pair in enumerate(set_item["pairs"], start=1):
+                lines.append(f"   {pair_idx}) {pair['left']} -> {pair['right']}")
+            lines.append("")
+
     return "\n".join(lines).encode("utf-8")
 
 
-def _render_pdf(mcqs, flashcards, fill_blanks, true_false, summary):
+def _render_pdf(mcqs, flashcards, fill_blanks, true_false, match_pair_sets, summary):
     entries = [
         {
             "text": "EduCator Study Set",
@@ -520,6 +582,35 @@ def _render_pdf(mcqs, flashcards, fill_blanks, true_false, summary):
             else:
                 entries.append({"text": "", "font_size": 10, "after": 6})
 
+    if match_pair_sets:
+        entries.extend(
+            [
+                {"page_break": True},
+                {"text": "Match the Pair", "font_size": 14, "bold": True, "color": "1A4F7A", "before": 4, "after": 6},
+            ]
+        )
+        for set_idx, set_item in enumerate(match_pair_sets, start=1):
+            entries.append(
+                {
+                    "text": f"{set_idx}. {set_item['title']}",
+                    "font_size": 12,
+                    "bold": True,
+                    "color": "102A43",
+                    "after": 3,
+                }
+            )
+            for pair_idx, pair in enumerate(set_item["pairs"], start=1):
+                entries.append(
+                    {
+                        "text": f"{pair_idx}) {pair['left']} -> {pair['right']}",
+                        "font_size": 10,
+                        "color": "334E68",
+                        "indent": 64,
+                        "after": 2,
+                    }
+                )
+            entries.append({"text": "", "font_size": 10, "after": 4})
+
     return _build_pdf_bytes(entries)
 
 
@@ -535,6 +626,7 @@ def export_study_set(export_format: str, payload: dict = Body(default=None)):
         flashcards = payload.get("flashcards")
         fill_blanks = payload.get("fillBlanks")
         true_false = payload.get("trueFalse")
+        match_the_pair = payload.get("matchThePair")
         summary = _as_text(payload.get("summary"))
         title = _safe_filename_part(payload.get("title") or "study_set")
 
@@ -542,19 +634,20 @@ def export_study_set(export_format: str, payload: dict = Body(default=None)):
         flashcards = flashcards if isinstance(flashcards, list) else []
         fill_blanks = fill_blanks if isinstance(fill_blanks, list) else []
         true_false = true_false if isinstance(true_false, list) else []
-        if not mcqs and not flashcards and not fill_blanks and not true_false and not summary:
+        match_pair_sets = _normalize_match_pair_sets(match_the_pair)
+        if not mcqs and not flashcards and not fill_blanks and not true_false and not match_pair_sets and not summary:
             return JSONResponse(content={"error": "No study content found to export"}, status_code=400)
 
         if export_format == "csv":
-            body = _render_csv(mcqs, flashcards, fill_blanks, true_false)
+            body = _render_csv(mcqs, flashcards, fill_blanks, true_false, match_pair_sets)
             media_type = "text/csv; charset=utf-8"
             extension = "csv"
         elif export_format == "quiz":
-            body = _render_quiz_text(mcqs, flashcards, fill_blanks, true_false, summary)
+            body = _render_quiz_text(mcqs, flashcards, fill_blanks, true_false, match_pair_sets, summary)
             media_type = "text/plain; charset=utf-8"
             extension = "quiz.txt"
         else:
-            body = _render_pdf(mcqs, flashcards, fill_blanks, true_false, summary)
+            body = _render_pdf(mcqs, flashcards, fill_blanks, true_false, match_pair_sets, summary)
             media_type = "application/pdf"
             extension = "pdf"
 

@@ -12,7 +12,7 @@ from services.mcq_session import get_mcq_session
 
 router = APIRouter()
 
-from services.gemini_service import answer_question_from_source, GEMINI_VOICE_API_KEY, GEMINI_TEXTAI_API_KEY, GEMINI_API_KEY
+from services.gemini_service import answer_question_from_source
 
 
 def _tokenize(text):
@@ -116,9 +116,7 @@ def voice_question_answering(payload: dict = Body(default=None)):
             return JSONResponse(content={"error": "Source content missing for this session."}, status_code=400)
 
         context = _retrieve_relevant_context(source_text, question, top_k=3)
-        # Use voice-specific Gemini key when available, otherwise fall back to general Gemini key
-        api_key = GEMINI_VOICE_API_KEY or GEMINI_API_KEY
-        answer = answer_question_from_source(context, question, api_key=api_key)
+        answer = answer_question_from_source(context, question)
         audio_base64 = _audio_base64(answer, language=language)
         return {
             "question": question,

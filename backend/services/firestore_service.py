@@ -87,12 +87,14 @@ def serialize_history_doc(doc_id, doc):
         "hadFlashcards": doc.get("hadFlashcards", False),
         "hadFillBlanks": doc.get("hadFillBlanks", False),
         "hadTrueFalse": doc.get("hadTrueFalse", False),
+        "hadMatchThePair": doc.get("hadMatchThePair", False),
         "mcqTotal": doc.get("mcqTotal", 0),
         "mcqCorrect": doc.get("mcqCorrect", 0),
         "mcqs": doc.get("mcqs", []),
         "flashcards": doc.get("flashcards", []),
         "fillBlanks": doc.get("fillBlanks", []),
         "trueFalse": doc.get("trueFalse", []),
+        "matchThePair": doc.get("matchThePair", {"sets": [], "setCount": 5, "pairsPerSet": 5}),
         "summary": doc.get("summary", ""),
         "examConcepts": doc.get("examConcepts", []),
         "examTotalQuestions": doc.get("examTotalQuestions", 0),
@@ -150,12 +152,14 @@ def save_session_history(payload):
     had_flashcards = bool(payload.get("hadFlashcards", False))
     had_fill_blanks = bool(payload.get("hadFillBlanks", False))
     had_true_false = bool(payload.get("hadTrueFalse", False))
+    had_match_the_pair = bool(payload.get("hadMatchThePair", False))
     mcq_total = int(payload.get("mcqTotal", 0))
     mcq_correct = int(payload.get("mcqCorrect", 0))
     mcqs = payload.get("mcqs", [])
     flashcards = payload.get("flashcards", [])
     fill_blanks = payload.get("fillBlanks", [])
     true_false = payload.get("trueFalse", [])
+    match_the_pair = payload.get("matchThePair", {"sets": [], "setCount": 5, "pairsPerSet": 5})
     summary = str(payload.get("summary", "")).strip()
 
     exam_concepts = payload.get("examConcepts", [])
@@ -184,13 +188,15 @@ def save_session_history(payload):
         "hadFlashcards": had_flashcards,
         "hadFillBlanks": had_fill_blanks,
         "hadTrueFalse": had_true_false,
+        "hadMatchThePair": had_match_the_pair,
         "mcqTotal": max(0, mcq_total),
         "mcqCorrect": max(0, mcq_correct),
         "mcqs": mcqs if isinstance(mcqs, list) else [],
         "flashcards": flashcards if isinstance(flashcards, list) else [],
         "fillBlanks": fill_blanks if isinstance(fill_blanks, list) else [],
         "trueFalse": true_false if isinstance(true_false, list) else [],
-        "summary": summary[:4000],
+        "matchThePair": match_the_pair if isinstance(match_the_pair, dict) else {"sets": [], "setCount": 5, "pairsPerSet": 5},
+        "summary": summary[:12000],
         "examConcepts": exam_concepts if isinstance(exam_concepts, list) else [],
         "examTotalQuestions": max(0, exam_total_questions),
         "examDurationMinutes": max(0, exam_duration_minutes),

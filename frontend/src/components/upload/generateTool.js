@@ -1,4 +1,4 @@
-import { API_BASE } from "../../config/api";
+import { callClaude } from "../../utils/callClaude";
 
 function buildSourceFormData(source, tool, difficulty = "medium", count = 12, options = {}) {
   const formData = new FormData();
@@ -9,9 +9,6 @@ function buildSourceFormData(source, tool, difficulty = "medium", count = 12, op
   formData.append("tool", normalizedTool);
   formData.append("difficulty", String(difficulty || "medium"));
   formData.append("count", String(count || 12));
-  if (options?.includeImages) {
-    formData.append("includeImages", "1");
-  }
 
   if (source?.mode === "multi" && Array.isArray(source?.sources) && source.sources.length > 0) {
     let hasAny = false;
@@ -42,24 +39,8 @@ function buildSourceFormData(source, tool, difficulty = "medium", count = 12, op
   return null;
 }
 
-async function generateWithTool({ tool, source, difficulty = "medium", count = 12, includeImages = false, authToken = "" }) {
-  const formData = buildSourceFormData(source, tool, difficulty, count, { includeImages });
-  if (!formData) {
-    throw new Error("Source missing. Provide text or file.");
-  }
-  const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
-  const response = await fetch(`${API_BASE}/api/tools/generate`, { method: "POST", body: formData, headers });
-  const rawText = await response.text();
-  let data = {};
-  try {
-    data = rawText ? JSON.parse(rawText) : {};
-  } catch (_error) {
-    data = {};
-  }
-  if (!response.ok) {
-    throw new Error(data?.error || rawText || "Tool generation failed");
-  }
-  return data;
+async function generateWithTool({ tool, source, difficulty = "medium", count = 12, authToken = "" }) {
+  return callClaude(tool, source, { difficulty, count, authToken });
 }
 
 export { buildSourceFormData };
