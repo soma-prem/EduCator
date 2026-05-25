@@ -88,9 +88,8 @@ function StudySetPage({ mode }) {
   const [topics, setTopics] = useState(routeState?.topics || []);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const [revisionData, setRevisionData] = useState(null);
-  const [revisionLoading, setRevisionLoading] = useState(false);
-  const [voiceTutorOpen, setVoiceTutorOpen] = useState(false);
+  const [revisionData] = useState(null);
+  const [voiceTutorOpen] = useState(false);
 
   const handleUpgrade = () => navigate("/premium");
 
@@ -481,40 +480,6 @@ function StudySetPage({ mode }) {
       toast.error(error.message || "Export failed");
     } finally {
       setExportingFormat("");
-    }
-  };
-
-  const handleSmartRevision = async () => {
-    if (revisionLoading) return;
-    setRevisionLoading(true);
-    try {
-      const attempts = Object.keys(mcqVerdicts).reduce((acc, key) => {
-        const verdict = mcqVerdicts[key];
-        if (verdict?.selectedAnswer) acc[key] = verdict.selectedAnswer;
-        return acc;
-      }, {});
-      const payload = {
-        mcqs,
-        attempts,
-        flashcards,
-        spacedSchedule,
-      };
-      const response = await fetch(`${API_BASE}/api/revision/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.error || "Revision failed");
-      }
-      setRevisionData(data);
-      toast.success("Smart Revision ready");
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message || "Smart Revision failed");
-    } finally {
-      setRevisionLoading(false);
     }
   };
 

@@ -71,10 +71,6 @@ function UploadPage({ user }) {
   const [summary, setSummary] = useState("");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [ttsLanguage] = useState("en");
-  const [audioUrl, setAudioUrl] = useState("");
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState("");
-  const [lastSource, setLastSource] = useState(null);
   const [ragQuestion, setRagQuestion] = useState("");
   const [ragAnswer, setRagAnswer] = useState("");
   const [ragLoading, setRagLoading] = useState(false);
@@ -92,7 +88,6 @@ function UploadPage({ user }) {
   const [fillBlanksGenerating, setFillBlanksGenerating] = useState(false);
   const [trueFalseGenerating, setTrueFalseGenerating] = useState(false);
   const [matchThePairGenerating, setMatchThePairGenerating] = useState(false);
-  const [savingSession, setSavingSession] = useState(false);
   const [mcqReady, setMcqReady] = useState(false);
   const [flashReady, setFlashReady] = useState(false);
   const [fillBlanksReady, setFillBlanksReady] = useState(false);
@@ -170,7 +165,6 @@ function UploadPage({ user }) {
     setFillBlanksPayload(null);
     setTrueFalsePayload(null);
     setMatchThePairPayload(null);
-    setAudioUrl("");
   };
 
   useEffect(() => {
@@ -206,12 +200,6 @@ function UploadPage({ user }) {
   const hasText = textValue.trim().length > 0;
   const hasFile = Boolean(uploadFile) || Boolean(storedFileId);
   const canGenerate = hasText || hasFile;
-  const hasResults =
-    mcqs.length > 0 ||
-    flashcards.length > 0 ||
-    fillBlanks.length > 0 ||
-    trueFalse.length > 0 ||
-    matchThePair.length > 0;
   const hasSummary = summary.trim().length > 0;
   const hasSource =
     sources.length > 0 ||

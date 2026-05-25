@@ -97,10 +97,14 @@ EduCator turns uploaded study content into practice material (MCQs, flashcards, 
   - Consider server-side queuing or exponential backoff for heavy generation workloads.
 - Build: after UI changes, rebuild the frontend (`npm install && npm run build`) and redeploy static assets to Vercel.
 
-## Deployment Checklist (Render / Vercel)
-- Remove any legacy `OPENROUTER_*` env variables from Render (they can cause accidental provider usage).
-- Set the required `GEMINI_*` env variables on Render and verify they are paid/provisioned if production traffic is expected.
-- Redeploy backend on Render and frontend on Vercel.
+## Deployment (Render / Vercel)
+
+Step-by-step guide: **[DEPLOY.md](./DEPLOY.md)** (includes env tables, Stripe webhook URL, and Firebase domain setup).
+
+Quick checklist:
+- Remove any legacy `OPENROUTER_*` env variables from Render.
+- Set `GEMINI_*` / `FIREBASE_SERVICE_ACCOUNT_JSON` on Render; set `REACT_APP_*` on Vercel.
+- Backend: `render.yaml` · Frontend root: `frontend/` · SPA: `frontend/vercel.json`
 
 ## How to Build & Run Locally
 Backend (Python):
