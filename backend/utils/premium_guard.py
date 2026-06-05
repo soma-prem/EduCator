@@ -3,7 +3,7 @@ import time
 from fastapi import HTTPException, Request
 
 from services.entitlement_service import get_user_entitlement
-from services.firestore_service import get_firestore_db
+from services.firestore_service import ensure_firestore_initialized
 
 try:
     from firebase_admin import auth as firebase_auth
@@ -48,7 +48,7 @@ def require_feature(request: Request, feature_key: str) -> str:
         raise HTTPException(status_code=502, detail="Firebase auth is not configured on backend")
 
     # Ensure firebase_admin is initialized (shared with Firestore setup).
-    get_firestore_db()
+    ensure_firestore_initialized()
 
     token = _bearer_token(request)
     if not token:

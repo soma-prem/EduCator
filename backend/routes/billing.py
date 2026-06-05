@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from services.entitlement_service import get_user_entitlement, set_user_entitlement
-from services.firestore_service import get_firestore_db
+from services.firestore_service import ensure_firestore_initialized
 
 try:
     import stripe
@@ -90,7 +90,7 @@ def _get_bearer_token(request: Request) -> str:
 def _require_firebase_user(request: Request):
     if firebase_auth is None:
         raise RuntimeError("firebase_admin is not installed/configured on backend")
-    get_firestore_db()
+    ensure_firestore_initialized()
     token = _get_bearer_token(request)
     if not token:
         raise ValueError("Missing Authorization Bearer token")

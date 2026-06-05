@@ -59,11 +59,18 @@ def get_firestore_db():
                 firebase_admin.initialize_app()
         FIREBASE_DB = firestore.client()
         FIREBASE_INIT_ERROR = ""
-    except Exception:
+    except Exception as exc:
         FIREBASE_DB = None
-        FIREBASE_INIT_ERROR = "Firebase initialization failed. Check service account JSON and project ID."
+        FIREBASE_INIT_ERROR = f"Firebase initialization failed: {exc}"
         return None
     return FIREBASE_DB
+
+
+def ensure_firestore_initialized():
+    db = get_firestore_db()
+    if db is None:
+        raise RuntimeError(FIREBASE_INIT_ERROR or "Firebase is not initialized. Check service account credentials and environment variables.")
+    return db
 
 
 def serialize_history_doc(doc_id, doc):
