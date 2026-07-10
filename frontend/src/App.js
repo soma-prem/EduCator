@@ -210,10 +210,8 @@ function App() {
                   </div>
                 </div>
                 
-                {/* Right Column */}
-                <div className="home-hero-right">
-                  <img src="/hero.png" alt="EduCator Study Companion" className="hero-image" />
-                </div>
+                {/* Right Column - Spacer to keep layout balanced over background image */}
+                <div className="home-hero-right-spacer" />
               </div>
             </main>
           }
