@@ -1232,7 +1232,6 @@ function UploadPage({ user }) {
             <div className="card-header">
               <h2 className="card-title">Sources</h2>
             </div>
-            <p className="card-subtitle">Add text, PDF, or docs to build a knowledge base.</p>
             <div className="notebook-card-body">
               <div className="sources-body">
                 <div className="sources-empty">
@@ -1330,7 +1329,7 @@ function UploadPage({ user }) {
                       ? ragAnswer
                       : ragLoading
                       ? "Thinking..."
-                      : "Upload a source and ask a question to get a guided response."}
+                      : ""}
                   </div>
                 </>
               )}
@@ -1341,7 +1340,6 @@ function UploadPage({ user }) {
             <div className="card-header">
               <h2 className="card-title">Tools</h2>
             </div>
-            <p className="card-subtitle">Summaries, MCQs, flashcards, fill-in-the-blanks, true/false, and match-the-pair.</p>
             <div className="notebook-card-body tools-stack">
               <div className="tool-actions">
                 <button
@@ -1364,9 +1362,6 @@ function UploadPage({ user }) {
                   <span className="tool-action-title">
                     {mcqReady ? "MCQs Ready" : mcqGenerating ? "Generating MCQs..." : "MCQs"}
                   </span>
-                  <span className="tool-action-subtitle">
-                    {mcqReady ? "Click to open your generated questions" : "Auto-create questions from sources"}
-                  </span>
                   {!mcqReady && mcqGenerating && <span className="tool-action-spinner" aria-hidden="true" />}
                 </button>
                 <button
@@ -1387,9 +1382,6 @@ function UploadPage({ user }) {
                 >
                   <span className="tool-action-title">
                     {flashReady ? "Flashcards Ready" : flashGenerating ? "Generating Flashcards..." : "Flashcards"}
-                  </span>
-                  <span className="tool-action-subtitle">
-                    {flashReady ? "Click to open your flashcards" : "Create quick recall cards"}
                   </span>
                   {flashGenerating && <span className="tool-action-spinner" aria-hidden="true" />}
                 </button>
@@ -1423,13 +1415,6 @@ function UploadPage({ user }) {
                       : fillBlanksGenerating
                       ? "Generating Fill Blanks..."
                       : "Fill in the Blanks"}
-                  </span>
-                  <span className="tool-action-subtitle">
-                    {fillBlanksReady
-                      ? "Click to open your blanks"
-                      : !premium.canUse("fill_blanks")
-                      ? `Premium (${requiredPlanForFeature("fill_blanks")}+)`
-                      : "Practice key facts quickly"}
                   </span>
                   {!fillBlanksReady && fillBlanksGenerating && (
                     <span className="tool-action-spinner" aria-hidden="true" />
@@ -1466,13 +1451,6 @@ function UploadPage({ user }) {
                       ? "Generating True / False..."
                       : "True and False"}
                   </span>
-                  <span className="tool-action-subtitle">
-                    {trueFalseReady
-                      ? "Click to open your true/false questions"
-                      : !premium.canUse("true_false")
-                      ? `Premium (${requiredPlanForFeature("true_false")}+)`
-                      : "Fast check: true or false"}
-                  </span>
                   {!trueFalseReady && trueFalseGenerating && (
                     <span className="tool-action-spinner" aria-hidden="true" />
                   )}
@@ -1501,9 +1479,6 @@ function UploadPage({ user }) {
                       ? "Generating Match-the-Pair..."
                       : "Match the Pair"}
                   </span>
-                  <span className="tool-action-subtitle">
-                    {matchThePairReady ? "Click to open your match-the-pair sets" : "Match key terms and ideas"}
-                  </span>
                   {!matchThePairReady && matchThePairGenerating && (
                     <span className="tool-action-spinner" aria-hidden="true" />
                   )}
@@ -1525,9 +1500,6 @@ function UploadPage({ user }) {
                   <span className="tool-action-title">
                     {hasSummary ? "Summary Ready" : summaryGenerating ? "Generating Summary..." : "Summary"}
                   </span>
-                  <span className="tool-action-subtitle">
-                    {hasSummary ? "Click to open your generated summary" : "Generate a summary from your source"}
-                  </span>
                   {summaryGenerating && <span className="tool-action-spinner" aria-hidden="true" />}
                 </button>
                 <button
@@ -1542,11 +1514,6 @@ function UploadPage({ user }) {
                     </span>
                   )}
                   <span className="tool-action-title">YouTube Guide</span>
-                  <span className="tool-action-subtitle">
-                    {!premium.canUse("youtube_guide")
-                      ? `Premium (${requiredPlanForFeature("youtube_guide")}+)`
-                      : "Open video recommendations page"}
-                  </span>
                 </button>
               </div>
             </div>

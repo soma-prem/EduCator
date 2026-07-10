@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { API_BASE } from "../config/api";
 import { auth } from "../firebase";
@@ -22,7 +22,9 @@ const writeStoredEntitlement = (value) => {
   } catch (_error) {}
 };
 
-function usePremium() {
+const PremiumContext = createContext(null);
+
+export function PremiumProvider({ children }) {
   const [state, setState] = useState(() => {
     const saved = readStoredEntitlement();
     const plan = String(saved?.plan || "free").toLowerCase();
@@ -92,8 +94,13 @@ function usePremium() {
   }, [state.active, state.expiresAtEpoch, state.plan]);
 
   useEffect(() => {
-    // Background refresh once per page-load.
-    refresh().catch(() => {});
+    // Background refresh once per page-load / login state change
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      // Reset sync cooldown so we fetch latest entitlement immediately on auth state change
+      lastSyncRef.current = 0;
+      refresh().catch(() => {});
+    });
+    return () => unsubscribe();
   }, [refresh]);
 
   const canUse = useCallback((featureKey) => hasFeature(effectivePlan, featureKey), [effectivePlan]);
@@ -120,7 +127,13 @@ function usePremium() {
     [effectivePlan, state.active, state.expiresAtEpoch, state.loading, refresh, canUse, requireFeature]
   );
 
-  return value;
+  return <PremiumContext.Provider value={value}>{children}</PremiumContext.Provider>;
 }
 
-export default usePremium;
+export default function usePremium() {
+  const context = useContext(PremiumContext);
+  if (!context) {
+    throw new Error("usePremium must be used within a PremiumProvider");
+  }
+  return context;
+}
