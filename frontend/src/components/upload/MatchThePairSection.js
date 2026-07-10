@@ -24,9 +24,12 @@ function MatchThePairSet({ title, pairs, setIndex }) {
   const [leftCards, setLeftCards] = useState([]);
   const [rightCards, setRightCards] = useState([]);
   const [matchedIds, setMatchedIds] = useState({});
-  const [draggingId, setDraggingId] = useState(null);
-  const [activeDropId, setActiveDropId] = useState(null);
-  const [wrongDropId, setWrongDropId] = useState(null);
+  const [selectedLeftId, setSelectedLeftId] = useState(null);
+  const [selectedRightId, setSelectedRightId] = useState(null);
+  const [wrongLeftId, setWrongLeftId] = useState(null);
+  const [wrongRightId, setWrongRightId] = useState(null);
+  const [lineCoords, setLineCoords] = useState([]);
+  const boardRef = useRef(null);
   const wrongDropTimerRef = useRef(null);
 
   useEffect(() => {
@@ -35,9 +38,11 @@ function MatchThePairSet({ title, pairs, setIndex }) {
     setLeftCards(shuffle(nextLeft));
     setRightCards(shuffle(nextRight));
     setMatchedIds({});
-    setDraggingId(null);
-    setActiveDropId(null);
-    setWrongDropId(null);
+    setSelectedLeftId(null);
+    setSelectedRightId(null);
+    setWrongLeftId(null);
+    setWrongRightId(null);
+    setLineCoords([]);
     if (wrongDropTimerRef.current) {
       clearTimeout(wrongDropTimerRef.current);
       wrongDropTimerRef.current = null;
@@ -56,86 +61,117 @@ function MatchThePairSet({ title, pairs, setIndex }) {
   const matchedCount = Object.keys(matchedIds).length;
   const isComplete = totalCount > 0 && matchedCount === totalCount;
 
-  const onDragStartLeft = (event, id) => {
-    try {
-      event.dataTransfer.setData("text/plain", String(id));
-      event.dataTransfer.effectAllowed = "move";
-    } catch (_error) {}
-    setDraggingId(id);
-  };
+  const handleLeftCardClick = (id) => {
+    if (matchedIds[id] || wrongLeftId !== null) return;
 
-  const onDragEndLeft = () => {
-    setDraggingId(null);
-    setActiveDropId(null);
-  };
-
-  const onDragOverRight = (event, rightId) => {
-    event.preventDefault();
-    if (matchedIds[rightId]) return;
-    setActiveDropId(rightId);
-    try {
-      event.dataTransfer.dropEffect = "move";
-    } catch (_error) {}
-  };
-
-  const onDragLeaveRight = (_event, rightId) => {
-    if (activeDropId === rightId) {
-      setActiveDropId(null);
+    if (selectedRightId !== null) {
+      if (id === selectedRightId) {
+        setMatchedIds((prev) => ({ ...prev, [id]: true }));
+        setSelectedLeftId(null);
+        setSelectedRightId(null);
+      } else {
+        setWrongLeftId(id);
+        setWrongRightId(selectedRightId);
+        triggerWrongFeedback();
+      }
+    } else {
+      setSelectedLeftId((prev) => (prev === id ? null : id));
     }
   };
 
-  const onDropRight = (event, rightId) => {
-    event.preventDefault();
-    setActiveDropId(null);
-    if (matchedIds[rightId]) return;
+  const handleRightCardClick = (id) => {
+    if (matchedIds[id] || wrongRightId !== null) return;
 
-    const raw = event.dataTransfer?.getData?.("text/plain");
-    const leftId = Number(raw);
-    if (!Number.isFinite(leftId)) return;
-
-    if (leftId === rightId) {
-      setMatchedIds((prev) => ({ ...prev, [rightId]: true }));
-      return;
+    if (selectedLeftId !== null) {
+      if (id === selectedLeftId) {
+        setMatchedIds((prev) => ({ ...prev, [id]: true }));
+        setSelectedLeftId(null);
+        setSelectedRightId(null);
+      } else {
+        setWrongLeftId(selectedLeftId);
+        setWrongRightId(id);
+        triggerWrongFeedback();
+      }
+    } else {
+      setSelectedRightId((prev) => (prev === id ? null : id));
     }
+  };
 
-    setWrongDropId(rightId);
+  const triggerWrongFeedback = () => {
     if (wrongDropTimerRef.current) {
       clearTimeout(wrongDropTimerRef.current);
     }
     wrongDropTimerRef.current = setTimeout(() => {
-      setWrongDropId(null);
+      setWrongLeftId(null);
+      setWrongRightId(null);
+      setSelectedLeftId(null);
+      setSelectedRightId(null);
       wrongDropTimerRef.current = null;
     }, 550);
   };
 
+  const updateLineCoords = () => {
+    if (!boardRef.current) return;
+    const parentRect = boardRef.current.getBoundingClientRect();
+    const coords = [];
+    pairs.forEach((pair) => {
+      if (matchedIds[pair.id]) {
+        const leftEl = document.getElementById(`match-left-${setIndex}-${pair.id}`);
+        const rightEl = document.getElementById(`match-right-${setIndex}-${pair.id}`);
+        if (leftEl && rightEl) {
+          const leftRect = leftEl.getBoundingClientRect();
+          const rightRect = rightEl.getBoundingClientRect();
+          coords.push({
+            id: pair.id,
+            x1: leftRect.right - parentRect.left,
+            y1: leftRect.top + leftRect.height / 2 - parentRect.top,
+            x2: rightRect.left - parentRect.left,
+            y2: rightRect.top + rightRect.height / 2 - parentRect.top,
+          });
+        }
+      }
+    });
+    setLineCoords(coords);
+  };
+
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      updateLineCoords();
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [matchedIds, leftCards, rightCards]);
+
+  useEffect(() => {
+    window.addEventListener("resize", updateLineCoords);
+    return () => window.removeEventListener("resize", updateLineCoords);
+  }, [matchedIds, leftCards, rightCards]);
+
   const leftLabel = (id) => pairs.find((p) => p.id === id)?.left || "";
+
+  const handleReset = () => {
+    const nextLeft = pairs.map((pair) => ({ id: pair.id, text: pair.left }));
+    const nextRight = pairs.map((pair) => ({ id: pair.id, text: pair.right }));
+    setLeftCards(shuffle(nextLeft));
+    setRightCards(shuffle(nextRight));
+    setMatchedIds({});
+    setSelectedLeftId(null);
+    setSelectedRightId(null);
+    setWrongLeftId(null);
+    setWrongRightId(null);
+    setLineCoords([]);
+  };
 
   return (
     <section className="result-section match-pair-set">
       <div className="match-pair-set-header">
         <div>
-          <h3>
-            {title || `Set ${setIndex + 1}`}
-          </h3>
+          <h3>{title || `Set ${setIndex + 1}`}</h3>
           <p className="match-pair-subtitle">
-            Drag a left card onto its matching right card. ({matchedCount}/{totalCount})
+            Click a left card, then click its matching right card to connect them. ({matchedCount}/{totalCount})
           </p>
         </div>
         <div className="match-pair-controls">
-          <button
-            type="button"
-            className="ghost-btn"
-            onClick={() => {
-              const nextLeft = pairs.map((pair) => ({ id: pair.id, text: pair.left }));
-              const nextRight = pairs.map((pair) => ({ id: pair.id, text: pair.right }));
-              setLeftCards(shuffle(nextLeft));
-              setRightCards(shuffle(nextRight));
-              setMatchedIds({});
-              setDraggingId(null);
-              setActiveDropId(null);
-              setWrongDropId(null);
-            }}
-          >
+          <button type="button" className="ghost-btn" onClick={handleReset}>
             Reset
           </button>
         </div>
@@ -143,49 +179,82 @@ function MatchThePairSet({ title, pairs, setIndex }) {
 
       {isComplete && <div className="match-pair-complete">All pairs matched.</div>}
 
-      <div className="match-pair-board" role="group" aria-label={`Match the Pair set ${setIndex + 1}`}>
-        <div className="match-pair-column" aria-label="Left items">
+      <div 
+        ref={boardRef}
+        className="match-pair-board" 
+        style={{ position: "relative" }}
+        role="group" 
+        aria-label={`Match the Pair set ${setIndex + 1}`}
+      >
+        {/* Connection Lines Overlay */}
+        <svg 
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 5
+          }}
+        >
+          {lineCoords.map((coord) => (
+            <line
+              key={coord.id}
+              x1={coord.x1}
+              y1={coord.y1}
+              x2={coord.x2}
+              y2={coord.y2}
+              stroke="#10b981"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              style={{
+                filter: "drop-shadow(0px 2px 4px rgba(16, 185, 129, 0.45))"
+              }}
+            />
+          ))}
+        </svg>
+
+        <div className="match-pair-column" aria-label="Left items" style={{ zIndex: 10 }}>
           {leftCards.map((card) => {
             const isMatched = Boolean(matchedIds[card.id]);
-            const isDragging = draggingId === card.id;
+            const isSelected = selectedLeftId === card.id;
+            const isWrong = wrongLeftId === card.id;
             return (
-              <div
+              <button
+                type="button"
+                id={`match-left-${setIndex}-${card.id}`}
                 key={`L-${card.id}`}
-                className={`match-pair-card draggable ${isMatched ? "matched" : ""} ${isDragging ? "dragging" : ""}`.trim()}
-                draggable={!isMatched}
-                onDragStart={(event) => onDragStartLeft(event, card.id)}
-                onDragEnd={onDragEndLeft}
+                className={`match-pair-card select-card ${isMatched ? "matched" : ""} ${isSelected ? "selected" : ""} ${isWrong ? "wrong" : ""}`.trim()}
+                onClick={() => handleLeftCardClick(card.id)}
+                disabled={isMatched}
                 aria-disabled={isMatched ? "true" : "false"}
               >
                 <div className="match-pair-card-text">{card.text}</div>
                 {isMatched && <div className="match-pair-card-badge">Matched</div>}
-              </div>
+              </button>
             );
           })}
         </div>
 
-        <div className="match-pair-column" aria-label="Right items">
+        <div className="match-pair-column" aria-label="Right items" style={{ zIndex: 10 }}>
           {rightCards.map((card) => {
             const isMatched = Boolean(matchedIds[card.id]);
-            const isActive = activeDropId === card.id && !isMatched;
-            const isWrong = wrongDropId === card.id && !isMatched;
+            const isSelected = selectedRightId === card.id;
+            const isWrong = wrongRightId === card.id;
             return (
-              <div
+              <button
+                type="button"
+                id={`match-right-${setIndex}-${card.id}`}
                 key={`R-${card.id}`}
-                className={`match-pair-card droppable ${isMatched ? "matched" : ""} ${isActive ? "active" : ""} ${
-                  isWrong ? "wrong" : ""
-                }`.trim()}
-                onDragOver={(event) => onDragOverRight(event, card.id)}
-                onDragLeave={(event) => onDragLeaveRight(event, card.id)}
-                onDrop={(event) => onDropRight(event, card.id)}
-                role="button"
-                tabIndex={0}
-                aria-label={isMatched ? `Matched: ${card.text}` : `Drop match for: ${card.text}`}
+                className={`match-pair-card select-card ${isMatched ? "matched" : ""} ${isSelected ? "selected" : ""} ${isWrong ? "wrong" : ""}`.trim()}
+                onClick={() => handleRightCardClick(card.id)}
+                disabled={isMatched}
+                aria-disabled={isMatched ? "true" : "false"}
               >
                 <div className="match-pair-card-text">{card.text}</div>
                 {isMatched && <div className="match-pair-card-badge success">✓ {leftLabel(card.id)}</div>}
-                {!isMatched && <div className="match-pair-card-hint">Drop here</div>}
-              </div>
+              </button>
             );
           })}
         </div>

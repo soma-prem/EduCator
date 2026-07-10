@@ -2,6 +2,11 @@
   width: 100%;
 }
 
+.mock-builder-page .notebook-card {
+  min-height: 85vh;
+  max-height: none;
+}
+
 .mock-builder-body {
   display: grid;
   gap: 1.5rem;

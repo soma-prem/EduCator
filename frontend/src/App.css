@@ -2019,7 +2019,7 @@ button:disabled {
   margin-top: 0.9rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 3.5rem;
 }
 
 .match-pair-column {
@@ -2038,43 +2038,41 @@ button:disabled {
   line-height: 1.25;
   box-shadow: 0 8px 16px rgba(15, 31, 47, 0.08);
   user-select: none;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  transition: all 0.15s ease;
 }
 
-.match-pair-card:hover {
-  background: #f4f8ff;
+.match-pair-card:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
 }
 
-.match-pair-card.draggable {
-  cursor: grab;
+.match-pair-card.selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3.5px rgba(59, 130, 246, 0.18);
+  background: #eff6ff;
+  color: #1e40af;
 }
 
-.match-pair-card.draggable.dragging {
-  opacity: 0.65;
-  cursor: grabbing;
-}
-
-.match-pair-card.droppable {
-  outline: 2px dashed rgba(31, 111, 191, 0.28);
-  outline-offset: 3px;
-}
-
-.match-pair-card.droppable.active {
-  outline-color: rgba(31, 111, 191, 0.75);
-  background: #eef6ff;
-}
-
-.match-pair-card.droppable.wrong {
-  outline-color: rgba(204, 61, 51, 0.85);
-  background: #fff1f0;
+.match-pair-card.wrong {
+  border-color: #dc2626;
+  background: #fee2e2;
+  color: #991b1b;
   animation: match-pair-shake 0.26s linear 1;
 }
 
 .match-pair-card.matched,
 .match-pair-card:disabled,
 .match-pair-card[aria-disabled="true"] {
-  background: #f2f6fb;
-  color: #4a627c;
-  opacity: 0.9;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  opacity: 0.95;
   cursor: not-allowed;
 }
 
