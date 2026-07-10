@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function shuffle(items) {
   const copy = Array.isArray(items) ? [...items] : [];
@@ -110,7 +110,7 @@ function MatchThePairSet({ title, pairs, setIndex }) {
     }, 550);
   };
 
-  const updateLineCoords = () => {
+  const updateLineCoords = useCallback(() => {
     if (!boardRef.current) return;
     const parentRect = boardRef.current.getBoundingClientRect();
     const coords = [];
@@ -132,19 +132,19 @@ function MatchThePairSet({ title, pairs, setIndex }) {
       }
     });
     setLineCoords(coords);
-  };
+  }, [matchedIds, pairs, setIndex]);
 
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       updateLineCoords();
     });
     return () => cancelAnimationFrame(handle);
-  }, [matchedIds, leftCards, rightCards]);
+  }, [matchedIds, leftCards, rightCards, updateLineCoords]);
 
   useEffect(() => {
     window.addEventListener("resize", updateLineCoords);
     return () => window.removeEventListener("resize", updateLineCoords);
-  }, [matchedIds, leftCards, rightCards]);
+  }, [updateLineCoords]);
 
   const leftLabel = (id) => pairs.find((p) => p.id === id)?.left || "";
 
