@@ -161,21 +161,60 @@ function App() {
         <Route
           path="/"
           element={
-            <main id="home" className="home-page">
-              <div className="home-bots" aria-hidden="true">
-                <div className="boat-group">
-                  <img src="/blue.png" alt="" className="bot boat boat-blue" />
+            <main id="home" className="home-page-new">
+              <div className="home-hero-container">
+                {/* Left Column */}
+                <div className="home-hero-left">
+                  <div className="learning-companion-tag">
+                    <span className="emoji">🎓</span> Your Learning Companion
+                  </div>
+                  <h1 className="hero-title">
+                    Learn Smarter.<br />
+                    <span className="accent-blue">Achieve</span> Greater.
+                  </h1>
+                  <p className="hero-description">
+                    Upload your study materials, track your progress, analyze your performance and ace every exam with confidence.
+                  </p>
+                  <div className="hero-actions-new">
+                    <button type="button" className="btn-primary-new" onClick={openUpload}>
+                      Let's Start Learning <span className="arrow">→</span>
+                    </button>
+                    <button type="button" className="btn-secondary-new" onClick={openUpload}>
+                      Upload Material <span className="icon">☁️</span>
+                    </button>
+                  </div>
+                  
+                  {/* Bottom Features Row */}
+                  <div className="hero-features-row">
+                    <div className="feature-item">
+                      <div className="feature-icon bg-blue">📖</div>
+                      <div className="feature-text">
+                        <span className="feature-title">Organize</span>
+                        <span className="feature-sub">Study Materials</span>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <div className="feature-icon bg-green">📈</div>
+                      <div className="feature-text">
+                        <span className="feature-title">Track</span>
+                        <span className="feature-sub">Your Progress</span>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <div className="feature-icon bg-amber">🎯</div>
+                      <div className="feature-text">
+                        <span className="feature-title">Achieve</span>
+                        <span className="feature-sub">Your Goals</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Right Column */}
+                <div className="home-hero-right">
+                  <img src="/hero.png" alt="EduCator Study Companion" className="hero-image" />
                 </div>
               </div>
-              <section className="hero-card">
-                <h1>Welcome to EduCator</h1>
-                <p>Learn with confidence and upload your study materials in one place.</p>
-                <div className="hero-actions">
-                  <button type="button" onClick={openUpload}>
-                    Lets Start
-                  </button>
-                </div>
-              </section>
             </main>
           }
         />
