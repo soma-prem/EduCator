@@ -30,7 +30,13 @@ def get_firestore_db():
         return None
 
     try:
-        if not firebase_admin._apps:
+        try:
+            firebase_admin.get_app()
+            app_exists = True
+        except ValueError:
+            app_exists = False
+
+        if not app_exists:
             if FIREBASE_SERVICE_ACCOUNT_JSON:
                 try:
                     data = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
