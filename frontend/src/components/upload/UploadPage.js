@@ -1224,7 +1224,7 @@ function UploadPage({ user }) {
       </div>
       <section className="upload-card upload-layout notebook-shell">
         <header className="upload-header">
-          <h1>{displayName}, Welcome!! Here is the EduCator workspace</h1>
+          <h1>Welcome, {displayName}</h1>
         </header>
 
         <div className="notebook-grid">
@@ -1259,6 +1259,7 @@ function UploadPage({ user }) {
 
           <section className="notebook-card notebook-chat">
             <div className="card-header">
+              <div className="header-spacer" style={{ width: "96px" }} aria-hidden="true" />
               <h2 className="card-title">AI Guide</h2>
               <div className="ai-guide-mode-toggle" aria-label="AI mode toggle">
                 <label className={`ai-guide-mode-option ${aiGuideMode === "text" ? "active" : ""}`} title="Text chat">

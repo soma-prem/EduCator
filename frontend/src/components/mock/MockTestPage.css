@@ -4,143 +4,239 @@
 
 .mock-builder-body {
   display: grid;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .mock-source-pill {
   align-self: flex-start;
   max-width: 380px;
-  border: 1px solid rgba(17, 36, 60, 0.16);
+  border: 1px solid #cbd5e1;
   border-radius: 999px;
-  padding: 0.4rem 0.65rem;
-  font-weight: 850;
-  font-size: 0.82rem;
-  color: #27435f;
-  background: linear-gradient(135deg, rgba(31, 93, 143, 0.1), rgba(255, 200, 88, 0.14));
+  padding: 0.5rem 0.95rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1e3a8a;
+  background: #eff6ff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .mock-builder-grid {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.5rem;
   align-items: start;
 }
 
 .mock-builder-card {
-  border: 1px solid rgba(17, 36, 60, 0.14);
-  border-radius: 16px;
-  background: linear-gradient(155deg, #ffffff, #f8fafc);
-  padding: 0.9rem 0.95rem 1rem;
-  box-shadow: 0 10px 22px rgba(15, 31, 47, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  display: grid;
+  gap: 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mock-builder-card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
 }
 
 .mock-builder-settings {
   position: sticky;
-  top: 0.85rem;
+  top: 1.5rem;
 }
 
 .mock-card-head h4 {
   margin: 0;
-  color: #10263c;
-  font-weight: 950;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 1.15rem;
 }
 
 .mock-card-head p {
-  margin: 0.25rem 0 0;
-  color: #556b83;
-  font-weight: 700;
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-weight: 500;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .mock-field-grid {
-  margin-top: 0.8rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 0.9rem;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
 }
 
 .mock-field-grid.mock-field-grid-two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.mock-divider {
-  height: 1px;
-  background: rgba(17, 36, 60, 0.1);
-  margin: 0.85rem 0 0.15rem;
+.mock-field-grid .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
+.mock-field-grid .field span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mock-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 0.5rem 0;
+}
+
+/* Custom File Upload Styling */
 .mock-builder-card input[type="file"] {
   width: 100%;
-  border: 1px dashed rgba(17, 36, 60, 0.26);
-  background: rgba(248, 250, 252, 0.8);
-  padding: 0.65rem 0.7rem;
+  border: 2px dashed #cbd5e1;
+  background: #f8fafc;
+  padding: 1.5rem 1rem;
   border-radius: 12px;
-  font-weight: 750;
-  color: #20384f;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mock-builder-card input[type="file"]:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e3b8a;
+}
+
+.file-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #10b981;
+}
+
+/* Settings Controls Styling */
+.mock-exam-controls {
+  display: grid;
+  gap: 1rem;
+}
+
+.mock-exam-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mock-exam-controls label span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mock-exam-controls input {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mock-exam-controls input:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 3.5px rgba(59, 130, 246, 0.12);
 }
 
 .mock-builder-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 0.75rem;
+  margin-top: 1rem;
   flex-wrap: wrap;
 }
 
+/* Sleek Presets Buttons */
 .mock-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  margin-top: 0.85rem;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
 }
 
-.file-hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #556b83;
+.mock-presets button.ghost-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.15s;
 }
 
+.mock-presets button.ghost-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Pulse Progress Styling */
 .mock-progress {
-  margin-top: 0.85rem;
-  border: 1px solid rgba(17, 36, 60, 0.14);
+  margin-top: 1rem;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 0.75rem 0.85rem 0.8rem;
-  background: rgba(248, 250, 252, 0.9);
+  padding: 1rem;
+  background: #f8fafc;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .mock-progress-track {
-  height: 10px;
+  height: 8px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
+  background: #e2e8f0;
   overflow: hidden;
 }
 
 .mock-progress-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f4fd1, #0ea5e9);
+  background: linear-gradient(90deg, #3b82f6, #06b6d4);
   transition: width 240ms ease;
+  animation: pulse-bar 2s infinite ease-in-out;
 }
 
 .mock-progress-meta {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  font-weight: 850;
-  color: #27435f;
+  font-weight: 700;
+  color: #334155;
   font-size: 0.85rem;
+}
+
+@keyframes pulse-bar {
+  0% { opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { opacity: 0.9; }
 }
 
 @media (max-width: 980px) {
   .mock-builder-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 
   .mock-builder-settings {
