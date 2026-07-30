@@ -1,7 +1,6 @@
 import base64
 import io
 import json
-import re
 from urllib.parse import quote
 from urllib.request import urlopen
 
@@ -9,52 +8,9 @@ from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 
 from services.mcq_session import get_mcq_session
+from services.rag.qa import generate_answer_from_chunks
 
 router = APIRouter()
-
-from services.gemini_service import answer_question_from_source
-
-
-def _tokenize(text):
-    return [
-        token
-        for token in re.findall(r"[A-Za-z0-9]{3,}", str(text or "").lower())
-        if token not in {"what", "when", "where", "which", "how", "this", "that", "from", "with", "into"}
-    ]
-
-
-def _split_chunks(text, size=700):
-    raw = str(text or "").strip()
-    if not raw:
-        return []
-    paragraphs = [part.strip() for part in re.split(r"\n{2,}", raw) if part.strip()]
-    chunks = []
-    for para in paragraphs:
-        if len(para) <= size:
-            chunks.append(para)
-            continue
-        for index in range(0, len(para), size):
-            part = para[index : index + size].strip()
-            if part:
-                chunks.append(part)
-    return chunks or [raw[:size]]
-
-
-def _retrieve_relevant_context(source_text, question, top_k=3):
-    q_tokens = set(_tokenize(question))
-    chunks = _split_chunks(source_text)
-    scored = []
-    for chunk in chunks:
-        c_tokens = set(_tokenize(chunk))
-        overlap = len(q_tokens.intersection(c_tokens))
-        density = overlap / max(1, len(c_tokens))
-        score = overlap + density
-        scored.append((score, chunk))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    top_chunks = [chunk for score, chunk in scored[:top_k] if score > 0]
-    if not top_chunks:
-        top_chunks = chunks[:top_k]
-    return "\n\n".join(top_chunks)
 
 
 def _translate_if_needed(text, language):
@@ -115,8 +71,13 @@ def voice_question_answering(payload: dict = Body(default=None)):
         if not source_text:
             return JSONResponse(content={"error": "Source content missing for this session."}, status_code=400)
 
-        context = _retrieve_relevant_context(source_text, question, top_k=3)
-        answer = answer_question_from_source(context, question)
+        answer, metadata = generate_answer_from_chunks(
+            question=question,
+            source_text=source_text,
+            document_id=None,
+            top_k=5,
+            min_score=0.15,
+        )
         audio_base64 = _audio_base64(answer, language=language)
         return {
             "question": question,
