@@ -147,8 +147,7 @@ async def analyze_diagram(request: Request):
             temp_path = temp_file.name
 
         try:
-            # Call tesseract CLI directly to avoid Pillow dependency.
-            # Requires tesseract to be installed and available on PATH.
+
             process = subprocess.run(
                 ["tesseract", temp_path, "stdout"],
                 capture_output=True,
