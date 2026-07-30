@@ -3,12 +3,12 @@ from fastapi.responses import JSONResponse
 
 from routes.generate import get_source_text_from_request
 from services.mcq_session import store_mcq_session, update_mcq_session, get_mcq_session
-from services.gemini_service import (
-    generate_items_from_source,
-    generate_fill_in_the_blanks_from_source,
-    generate_true_false_from_source,
-    generate_summary_from_source,
-    generate_study_set_from_source,
+from services.rag.generation import (
+    generate_fill_blanks as generate_fill_blanks_from_rag,
+    generate_flashcards as generate_flashcards_from_rag,
+    generate_mcqs as generate_mcqs_from_rag,
+    generate_summary as generate_summary_from_rag,
+    generate_true_false as generate_true_false_from_rag,
 )
 from utils.premium_guard import require_feature
 
@@ -128,10 +128,17 @@ async def tool_generate(request: Request):
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
 
         if tool == "study_set":
-            result = generate_study_set_from_source(source_text, expected_count=count, difficulty=difficulty)
-            mcqs = result.get("mcqs", [])
-            flashcards = result.get("flashcards", [])
-            summary = result.get("summary", "")
+            summary_result, _ = generate_summary_from_rag(source_text)
+            mcq_result, _ = generate_mcqs_from_rag(source_text)
+            flashcard_result, _ = generate_flashcards_from_rag(source_text)
+
+            summary = str(summary_result.get("summary", "") if isinstance(summary_result, dict) else summary_result).strip()
+            mcqs = mcq_result or []
+            flashcards = flashcard_result or []
+            if not mcqs:
+                mcqs = []
+            if not flashcards:
+                flashcards = []
             mcq_set_id = store_mcq_session(mcqs)
             update_mcq_session(mcq_set_id, items=mcqs, flashcards=flashcards, source_text=source_text)
             return {
@@ -148,16 +155,8 @@ async def tool_generate(request: Request):
             }
 
         if tool == "mcq":
-            instruction = (
-                "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
-                "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
-                f"Selected difficulty: {difficulty}.\n\n"
-                f"Create exactly {count} MCQs from the provided content. "
-                "Each item must be: "
-                "{\"question\":\"...\",\"options\": [\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
-                "The explanation should briefly explain why the correct answer is right."
-            )
-            mcqs = generate_items_from_source(source_text, instruction, expected_count=count)
+            mcqs, _ = generate_mcqs_from_rag(source_text)
+            mcqs = mcqs or []
 
             mcq_set_id = store_mcq_session(mcqs)
             update_mcq_session(mcq_set_id, items=mcqs, flashcards=[], source_text=source_text)
@@ -168,19 +167,14 @@ async def tool_generate(request: Request):
                 "meta": {
                     "difficulty": difficulty,
                     "count": count,
-                    "provider": "gemini",
+                    "provider": "rag",
                     **source_meta,
                 },
             }
 
         if tool == "flashcards":
-            instruction = (
-                "Difficulty: easy = direct definitions; medium = conceptual Q/A; hard = nuanced, tricky, and application-focused.\n"
-                f"Selected difficulty: {difficulty}.\n\n"
-                f"Create exactly {count} flashcards from the provided content. "
-                "Each item must be: {\"front\":\"...\",\"back\":\"...\",\"topic\":\"...\"}."
-            )
-            flashcards = generate_items_from_source(source_text, instruction, expected_count=count)
+            flashcards, _ = generate_flashcards_from_rag(source_text)
+            flashcards = flashcards or []
             return {
                 "tool": tool,
                 "flashcards": flashcards,
@@ -192,7 +186,7 @@ async def tool_generate(request: Request):
             }
 
         if tool == "fill_blanks":
-            items = generate_fill_in_the_blanks_from_source(source_text, expected_count=count, difficulty=difficulty)
+            items, _ = generate_fill_blanks_from_rag(source_text)
             return {
                 "tool": tool,
                 "fillBlanks": items,
@@ -204,7 +198,7 @@ async def tool_generate(request: Request):
             }
 
         if tool == "true_false":
-            items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty)
+            items, _ = generate_true_false_from_rag(source_text)
             return {
                 "tool": tool,
                 "trueFalse": items,
@@ -217,15 +211,7 @@ async def tool_generate(request: Request):
 
         if tool == "match_the_pair":
             pairs_per_set = 5
-            instruction = (
-                "Difficulty: easy = direct term-definition matches; medium = conceptual associations; "
-                "hard = nuanced relationships and examples.\n"
-                f"Selected difficulty: {difficulty}.\n\n"
-                f"Create exactly {count} matching pairs from the provided content. "
-                "Each item must be: {\"left\":\"term or concept\",\"right\":\"matching definition, example, or related idea\",\"topic\":\"...\"}. "
-                "Keep each side concise and avoid duplicate left or right values."
-            )
-            items = generate_items_from_source(source_text, instruction, expected_count=count)
+            items = []
             sets = _build_match_pair_sets(items, pairs_per_set=pairs_per_set)
             if not sets:
                 raise RuntimeError("Model returned no match-the-pair sets")
@@ -240,7 +226,8 @@ async def tool_generate(request: Request):
             }
 
         if tool == "summary":
-            summary = generate_summary_from_source(source_text)
+            summary_payload, _ = generate_summary_from_rag(source_text)
+            summary = str(summary_payload.get("summary", "") if isinstance(summary_payload, dict) else summary_payload).strip()
             return {
                 "tool": tool,
                 "summary": summary,

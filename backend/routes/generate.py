@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import os
 import re
@@ -8,6 +10,13 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
 
 from services.mcq_session import get_mcq_session, store_mcq_session, update_mcq_session
+from services.rag.generation import (
+    generate_fill_blanks as generate_fill_blanks_from_rag,
+    generate_flashcards as generate_flashcards_from_rag,
+    generate_mcqs as generate_mcqs_from_rag,
+    generate_summary as generate_summary_from_rag,
+    generate_true_false as generate_true_false_from_rag,
+)
 from services.rag.ingestion import ingest_document
 from services.rag.vectordb import list_documents
 from utils.extractors import extract_docx_text, extract_pdf_text, extract_pptx_text, extract_txt_text
@@ -19,6 +28,7 @@ TEMP_UPLOAD_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..",
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 
 REFILL_POOL_SIZE = int(os.getenv("REFILL_POOL_SIZE", "10"))
+GENERATION_CACHE_PATH = os.path.join(TEMP_UPLOAD_DIR, "generation_cache.json")
 
 from services.gemini_service import (
     generate_items_from_source,
@@ -31,6 +41,47 @@ from services.gemini_service import (
 
 def _normalize_text(value):
     return str(value or "").strip().lower()
+
+
+def _make_generation_cache_key(feature, source_text, count=None, difficulty=None):
+    payload = {
+        "feature": feature,
+        "source_text": str(source_text or ""),
+        "count": count,
+        "difficulty": difficulty,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _load_generation_cache():
+    if not os.path.exists(GENERATION_CACHE_PATH):
+        return {}
+    try:
+        with open(GENERATION_CACHE_PATH, "r", encoding="utf-8") as handle:
+            return json.load(handle) or {}
+    except Exception:
+        return {}
+
+
+def _save_generation_cache(cache):
+    with open(GENERATION_CACHE_PATH, "w", encoding="utf-8") as handle:
+        json.dump(cache, handle)
+
+
+def _get_cached_generation_payload(feature, source_text, count=None, difficulty=None):
+    if not source_text:
+        return None
+    cache = _load_generation_cache()
+    return cache.get(_make_generation_cache_key(feature, source_text, count=count, difficulty=difficulty))
+
+
+def _set_cached_generation_payload(feature, source_text, payload, count=None, difficulty=None):
+    if not source_text or payload is None:
+        return payload
+    cache = _load_generation_cache()
+    cache[_make_generation_cache_key(feature, source_text, count=count, difficulty=difficulty)] = payload
+    _save_generation_cache(cache)
+    return payload
 
 
 def _resolve_temp_upload(file_id):
@@ -476,25 +527,50 @@ async def generate_study_set(request: Request):
         initial_count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        try:
-            result = generate_study_set_from_source(source_text, expected_count=initial_count, difficulty=difficulty)
-            mcqs = _normalize_mcq_items(result["mcqs"])
-            mcq_set_id = store_mcq_session(mcqs)
-            update_mcq_session(
-                mcq_set_id,
-                items=mcqs,
-                flashcards=result["flashcards"],
-                source_text=source_text,
-            )
+
+        cached_result = _get_cached_generation_payload("study_set", source_text, count=initial_count, difficulty=difficulty)
+        if cached_result is not None:
+            mcqs = _normalize_mcq_items(cached_result.get("mcqs", []))
+            flashcards = cached_result.get("flashcards", [])
+            summary = cached_result.get("summary", "")
+            mcq_set_id = str(cached_result.get("mcqSetId", "") or "").strip()
+            if not mcq_set_id:
+                mcq_set_id = store_mcq_session(mcqs)
+            update_mcq_session(mcq_set_id, items=mcqs, flashcards=flashcards, source_text=source_text)
             return {
                 "mcqs": mcqs,
-                "flashcards": result["flashcards"],
-                "summary": result["summary"],
+                "flashcards": flashcards,
+                "summary": summary,
                 "mcqSetId": mcq_set_id,
             }
-        except RuntimeError:
-            # Fallback to independent generation when strict combined JSON is malformed.
-            # This keeps the endpoint resilient to occasional model formatting drift.
+
+        try:
+            summary_payload, _ = generate_summary_from_rag(source_text)
+            mcq_payload, _ = generate_mcqs_from_rag(source_text)
+            flashcard_payload, _ = generate_flashcards_from_rag(source_text)
+
+            summary_text = str(summary_payload.get("summary", "") if isinstance(summary_payload, dict) else summary_payload).strip()
+            mcqs = _normalize_mcq_items(mcq_payload or [])
+            flashcards = flashcard_payload or []
+            if not mcqs:
+                mcqs = _fallback_mcqs(source_text, count=initial_count)
+            if not flashcards:
+                flashcards = _fallback_flashcards(source_text, count=initial_count)
+            if not summary_text:
+                summary_text = _fallback_summary(source_text)
+
+            mcq_set_id = store_mcq_session(mcqs)
+            update_mcq_session(mcq_set_id, items=mcqs, flashcards=flashcards, source_text=source_text)
+            response_payload = {
+                "mcqs": mcqs,
+                "flashcards": flashcards,
+                "summary": summary_text,
+                "mcqSetId": mcq_set_id,
+            }
+            _set_cached_generation_payload("study_set", source_text, response_payload, count=initial_count, difficulty=difficulty)
+            return response_payload
+        except Exception:
+            # Fallback to independent generation when the shared RAG engine returns unusable output.
             pass
 
         difficulty_hint = (
@@ -544,12 +620,14 @@ async def generate_study_set(request: Request):
         summary = results.get("summary", "")
         mcq_set_id = store_mcq_session(mcqs)
         update_mcq_session(mcq_set_id, items=mcqs, flashcards=flashcards, source_text=source_text)
-        return {
+        response_payload = {
             "mcqs": mcqs,
             "flashcards": flashcards,
             "summary": summary,
             "mcqSetId": mcq_set_id,
         }
+        _set_cached_generation_payload("study_set", source_text, response_payload, count=initial_count, difficulty=difficulty)
+        return response_payload
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
     except RuntimeError as exc:
@@ -570,15 +648,19 @@ async def generate_mcqs(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        mcqs = _normalize_mcq_items(generate_items_from_source(source_text, (
-            "Difficulty: easy = basic recall/definitions; medium = conceptual and moderately challenging; "
-            "hard = advanced reasoning, nuanced distractors, and deeper understanding.\n"
-            f"Selected difficulty: {difficulty}.\n\n"
-            f"Create exactly {count} MCQs from the provided content. "
-            "Each item must be: "
-            "{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"...\",\"explanation\":\"...\",\"topic\":\"...\"}. "
-            "The explanation should briefly explain why the correct answer is right."
-        ), expected_count=count))
+
+        cached_mcqs = _get_cached_generation_payload("mcqs", source_text, count=count, difficulty=difficulty)
+        if cached_mcqs is not None:
+            mcqs = _normalize_mcq_items(cached_mcqs)
+            mcq_set_id = store_mcq_session(mcqs)
+            update_mcq_session(mcq_set_id, items=mcqs, flashcards=[], source_text=source_text)
+            return {"mcqs": mcqs, "mcqSetId": mcq_set_id}
+
+        mcq_payload, _ = generate_mcqs_from_rag(source_text)
+        mcqs = _normalize_mcq_items(mcq_payload or [])
+        if not mcqs:
+            mcqs = _fallback_mcqs(source_text, count=count)
+        _set_cached_generation_payload("mcqs", source_text, mcqs, count=count, difficulty=difficulty)
         mcq_set_id = store_mcq_session(mcqs)
         update_mcq_session(mcq_set_id, items=mcqs, flashcards=[], source_text=source_text)
         return {"mcqs": mcqs, "mcqSetId": mcq_set_id}
@@ -596,13 +678,16 @@ async def generate_flashcards(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        flashcard_instruction = (
-            "Difficulty: easy = direct definitions; medium = conceptual Q/A; hard = nuanced, tricky, and application-focused.\n"
-            f"Selected difficulty: {difficulty}.\n\n"
-            f"Create exactly {count} flashcards from the provided content. "
-            "Each item must be: {\"front\":\"...\",\"back\":\"...\",\"topic\":\"...\"}."
-        )
-        flashcards = generate_items_from_source(source_text, flashcard_instruction, expected_count=count)
+
+        cached_flashcards = _get_cached_generation_payload("flashcards", source_text, count=count, difficulty=difficulty)
+        if cached_flashcards is not None:
+            return {"flashcards": cached_flashcards}
+
+        flashcard_payload, _ = generate_flashcards_from_rag(source_text)
+        flashcards = flashcard_payload or []
+        if not flashcards:
+            flashcards = _fallback_flashcards(source_text, count=count)
+        _set_cached_generation_payload("flashcards", source_text, flashcards, count=count, difficulty=difficulty)
         return {"flashcards": flashcards}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
@@ -618,7 +703,15 @@ async def generate_fill_blanks(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        items = generate_fill_in_the_blanks_from_source(source_text, expected_count=count, difficulty=difficulty)
+
+        cached_items = _get_cached_generation_payload("fill_blanks", source_text, count=count, difficulty=difficulty)
+        if cached_items is not None:
+            return {"fillBlanks": cached_items}
+
+        items, _ = generate_fill_blanks_from_rag(source_text)
+        if not items:
+            items = []
+        _set_cached_generation_payload("fill_blanks", source_text, items, count=count, difficulty=difficulty)
         return {"fillBlanks": items}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
@@ -634,7 +727,15 @@ async def generate_true_false(request: Request):
         count = 10
         source_text, source_meta = await get_source_text_from_request(request)
         difficulty = str(source_meta.get("difficulty", "medium")).strip().lower() or "medium"
-        items = generate_true_false_from_source(source_text, expected_count=count, difficulty=difficulty)
+
+        cached_items = _get_cached_generation_payload("true_false", source_text, count=count, difficulty=difficulty)
+        if cached_items is not None:
+            return {"trueFalse": cached_items}
+
+        items, _ = generate_true_false_from_rag(source_text)
+        if not items:
+            items = []
+        _set_cached_generation_payload("true_false", source_text, items, count=count, difficulty=difficulty)
         return {"trueFalse": items}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
@@ -648,7 +749,16 @@ async def generate_true_false(request: Request):
 async def generate_summary(request: Request):
     try:
         source_text, _source_meta = await get_source_text_from_request(request)
-        summary = generate_summary_from_source(source_text)
+
+        cached_summary = _get_cached_generation_payload("summary", source_text)
+        if cached_summary is not None:
+            return {"summary": cached_summary}
+
+        summary_payload, _ = generate_summary_from_rag(source_text)
+        summary = str(summary_payload.get("summary", "") if isinstance(summary_payload, dict) else summary_payload).strip()
+        if not summary:
+            summary = _fallback_summary(source_text)
+        _set_cached_generation_payload("summary", source_text, summary)
         return {"summary": summary}
     except ValueError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
