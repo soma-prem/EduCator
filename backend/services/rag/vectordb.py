@@ -81,6 +81,7 @@ def add_documents(
             "chunk_id": int(chunk_id),
             "source_type": str(source_type or ""),
             "upload_time": upload_time,
+            "total_chunks": len(chunks),
         }
 
         ids.append(f"{document_id}::chunk::{index}")

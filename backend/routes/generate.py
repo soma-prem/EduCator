@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import uuid
@@ -7,9 +8,12 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
 
 from services.mcq_session import get_mcq_session, store_mcq_session, update_mcq_session
+from services.rag.ingestion import ingest_document
+from services.rag.vectordb import list_documents
 from utils.extractors import extract_docx_text, extract_pdf_text, extract_pptx_text, extract_txt_text
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 TEMP_UPLOAD_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "temp_uploads"))
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
@@ -64,6 +68,53 @@ def _extract_text_from_file_bytes(filename, data):
     return extracted_text, source_type
 
 
+def _index_uploaded_document(document_id, filename, source_type, raw_text):
+    if not document_id:
+        return None
+
+    if raw_text is None:
+        logger.info("Skipping RAG ingestion for %s because extracted text was None", filename)
+        return None
+
+    cleaned_text = str(raw_text).strip()
+    if not cleaned_text:
+        logger.info("Skipping RAG ingestion for %s because extracted text was empty", filename)
+        return None
+
+    if len(cleaned_text) < 100:
+        logger.info("Skipping RAG ingestion for %s because extracted text was shorter than 100 characters", filename)
+        return None
+
+    try:
+        existing_documents = list_documents() or []
+        for item in existing_documents:
+            if str(item.get("document_id", "")) == str(document_id):
+                logger.info("Document already indexed for document_id=%s", document_id)
+                return None
+    except Exception as exc:
+        logger.warning("Unable to check existing RAG documents for %s: %s", document_id, exc)
+
+    try:
+        logger.info("Upload completed for %s", filename)
+        logger.info("Extracted %s characters for document_id=%s", len(cleaned_text), document_id)
+        result = ingest_document(
+            document_id=document_id,
+            filename=filename,
+            source_type=source_type,
+            raw_text=cleaned_text,
+        )
+        if result.get("success"):
+            logger.info("Created %s chunks for document_id=%s", result.get("number_of_chunks", 0), document_id)
+            logger.info("Stored %s embeddings for document_id=%s", result.get("number_of_chunks", 0), document_id)
+            logger.info("ChromaDB indexing completed for document_id=%s", document_id)
+        else:
+            logger.warning("RAG indexing skipped for document_id=%s: %s", document_id, result.get("error", "unknown error"))
+        return result
+    except Exception as exc:
+        logger.exception("RAG ingestion failed for document_id=%s", document_id)
+        return None
+
+
 @router.post("/api/source/upload")
 async def upload_source_file(request: Request):
     try:
@@ -82,6 +133,12 @@ async def upload_source_file(request: Request):
         path = os.path.join(TEMP_UPLOAD_DIR, stored_name)
         with open(path, "wb") as handle:
             handle.write(data)
+
+        try:
+            extracted_text, source_type = _extract_text_from_file_bytes(filename, data)
+            _index_uploaded_document(file_id, filename, source_type, extracted_text)
+        except Exception as exc:
+            logger.warning("Skipping RAG indexing for upload %s due to extraction error: %s", filename, exc)
 
         return {"fileId": file_id, "fileName": filename, "size": len(data)}
     except Exception as exc:
@@ -370,6 +427,7 @@ async def get_source_text_from_request(request: Request):
         extracted_text, source_type = _extract_text_from_file_bytes(filename, data)
         if not extracted_text:
             raise ValueError("Unable to extract text from the uploaded file")
+        _index_uploaded_document(file_id, filename, source_type, extracted_text)
         combined_chunks.append(extracted_text)
         previews.append(filename)
         if source_type == "pdf" and not file_meta["pdfFileName"]:
@@ -387,6 +445,7 @@ async def get_source_text_from_request(request: Request):
         extracted_text, source_type = _extract_text_from_file_bytes(filename, data)
         if not extracted_text:
             raise ValueError("Unable to extract text from the uploaded file")
+        _index_uploaded_document("upload:" + filename, filename, source_type, extracted_text)
         combined_chunks.append(extracted_text)
         previews.append(filename)
         if source_type == "pdf" and not file_meta["pdfFileName"]:
