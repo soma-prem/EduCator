@@ -158,3 +158,23 @@ def list_documents() -> List[Dict[str, Any]]:
             }
         )
     return docs
+
+
+def health_check() -> Dict[str, Any]:
+    """Check the health of the ChromaDB vector store."""
+    try:
+        collection = initialize()
+        results = collection.get(include=["metadatas"])
+        metadatas = results.get("metadatas", []) or []
+        total_documents = len([metadata for metadata in metadatas if metadata])
+        return {
+            "ok": True,
+            "provider": "chroma",
+            "document_count": total_documents,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "provider": "chroma",
+            "error": str(exc),
+        }

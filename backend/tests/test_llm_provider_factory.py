@@ -13,13 +13,13 @@ if str(BACKEND_ROOT) not in sys.path:
 
 
 class LlmProviderFactoryTests(unittest.TestCase):
-    def test_factory_returns_gemini_provider_by_default(self):
+    def test_factory_returns_ollama_provider_by_default(self):
         from services.llm.factory import create_provider
 
-        with patch.dict(os.environ, {"LLM_PROVIDER": "", "GEMINI_API_KEY": "test-key"}, clear=False):
+        with patch.dict(os.environ, {"LLM_PROVIDER": "", "OLLAMA_MODEL": "gemma3"}, clear=False):
             provider = create_provider()
 
-        self.assertEqual(provider.__class__.__name__, "GeminiProvider")
+        self.assertEqual(provider.__class__.__name__, "OllamaProvider")
 
     def test_factory_returns_ollama_provider_when_selected(self):
         from services.llm.factory import create_provider

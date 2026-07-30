@@ -6,7 +6,7 @@ import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Request
 from fastapi.responses import JSONResponse
 
 from services.mcq_session import get_mcq_session, store_mcq_session, update_mcq_session
@@ -119,6 +119,10 @@ def _extract_text_from_file_bytes(filename, data):
     return extracted_text, source_type
 
 
+def _should_background_ingest() -> bool:
+    return str(os.getenv("RAG_BACKGROUND_INGESTION", "false")).strip().lower() in {"1", "true", "yes"}
+
+
 def _index_uploaded_document(document_id, filename, source_type, raw_text):
     if not document_id:
         return None
@@ -145,9 +149,10 @@ def _index_uploaded_document(document_id, filename, source_type, raw_text):
     except Exception as exc:
         logger.warning("Unable to check existing RAG documents for %s: %s", document_id, exc)
 
+    logger.info("Upload completed for %s", filename)
+    logger.info("Extracted %s characters for document_id=%s", len(cleaned_text), document_id)
+
     try:
-        logger.info("Upload completed for %s", filename)
-        logger.info("Extracted %s characters for document_id=%s", len(cleaned_text), document_id)
         result = ingest_document(
             document_id=document_id,
             filename=filename,
@@ -167,7 +172,7 @@ def _index_uploaded_document(document_id, filename, source_type, raw_text):
 
 
 @router.post("/api/source/upload")
-async def upload_source_file(request: Request):
+async def upload_source_file(request: Request, background_tasks: BackgroundTasks):
     try:
         form = await request.form()
         upload = form.get("file")
@@ -187,7 +192,10 @@ async def upload_source_file(request: Request):
 
         try:
             extracted_text, source_type = _extract_text_from_file_bytes(filename, data)
-            _index_uploaded_document(file_id, filename, source_type, extracted_text)
+            if _should_background_ingest():
+                background_tasks.add_task(_index_uploaded_document, file_id, filename, source_type, extracted_text)
+            else:
+                _index_uploaded_document(file_id, filename, source_type, extracted_text)
         except Exception as exc:
             logger.warning("Skipping RAG indexing for upload %s due to extraction error: %s", filename, exc)
 

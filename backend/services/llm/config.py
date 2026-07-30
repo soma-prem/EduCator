@@ -34,7 +34,7 @@ def get_active_provider_name() -> str:
     provider = get_env_provider("PRIMARY_PROVIDER")
     if provider:
         return provider
-    return "gemini"
+    return "ollama"
 
 
 def get_fallback_provider_name() -> Optional[str]:
