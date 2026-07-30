@@ -40,7 +40,9 @@ from routes.revision import router as revision_router  # noqa: E402
 from routes.voice_tutor import router as voice_tutor_router  # noqa: E402
 from routes.exam import router as exam_router  # noqa: E402
 from routes.youtube import router as youtube_router  # noqa: E402
-from routes.billing import router as billing_router  # noqa: E402from routes.profile import router as profile_router  # noqa: E402from routes.system import router as system_router  # noqa: E402
+from routes.billing import router as billing_router  # noqa: E402
+from routes.profile import router as profile_router  # noqa: E402
+from routes.system import router as system_router  # noqa: E402
 
 app = FastAPI(title="EduCator Backend")
 
