@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 
 from services.mcq_session import get_mcq_session
-from services.rag.qa import generate_answer_from_chunks
+from services.rag.generation import generate_answer
 
 router = APIRouter()
 
@@ -71,7 +71,7 @@ def voice_question_answering(payload: dict = Body(default=None)):
         if not source_text:
             return JSONResponse(content={"error": "Source content missing for this session."}, status_code=400)
 
-        answer, metadata = generate_answer_from_chunks(
+        answer, metadata = generate_answer(
             question=question,
             source_text=source_text,
             document_id=None,

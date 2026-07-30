@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from services.rag.qa import generate_answer_from_chunks
+from services.rag.generation import generate_answer
 from utils.extractors import extract_docx_text, extract_pdf_text, extract_pptx_text, extract_txt_text
 
 router = APIRouter()
@@ -81,7 +81,7 @@ async def answer_question_from_upload(request: Request):
         else:
             return JSONResponse(content={"error": "source text is required"}, status_code=400)
 
-        answer, metadata = generate_answer_from_chunks(
+        answer, metadata = generate_answer(
             question=question,
             source_text=source_text,
             document_id=file_id or None,
