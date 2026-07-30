@@ -39,15 +39,10 @@ def _bearer_token(request: Request) -> str:
     return ""
 
 
-def require_feature(request: Request, feature_key: str) -> str:
-    feature_key = str(feature_key or "").strip()
-    required_plan = FEATURE_MIN_PLAN.get(feature_key)
-    if not required_plan:
-        return ""
+def require_user(request: Request) -> tuple[str, str]:
     if firebase_auth is None:
         raise HTTPException(status_code=502, detail="Firebase auth is not configured on backend")
 
-    # Ensure firebase_admin is initialized (shared with Firestore setup).
     ensure_firestore_initialized()
 
     token = _bearer_token(request)
@@ -56,9 +51,20 @@ def require_feature(request: Request, feature_key: str) -> str:
 
     decoded = firebase_auth.verify_id_token(token)
     uid = str(decoded.get("uid") or "").strip()
+    email = str(decoded.get("email") or "").strip()
     if not uid:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+    return uid, email
+
+
+def require_feature(request: Request, feature_key: str) -> str:
+    feature_key = str(feature_key or "").strip()
+    required_plan = FEATURE_MIN_PLAN.get(feature_key)
+    if not required_plan:
+        return ""
+
+    uid, _ = require_user(request)
     entitlement, message = get_user_entitlement(uid)
     if message:
         raise HTTPException(status_code=502, detail=message)

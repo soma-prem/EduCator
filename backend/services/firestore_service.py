@@ -16,6 +16,8 @@ FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "")
 FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
 FIREBASE_SESSION_COLLECTION = os.getenv("FIREBASE_SESSION_COLLECTION", "study_sessions")
 FIREBASE_SPACED_COLLECTION = os.getenv("FIREBASE_SPACED_COLLECTION", "spaced_plans")
+FIREBASE_PROFILE_COLLECTION = os.getenv("FIREBASE_PROFILE_COLLECTION", "user_profiles")
+FIREBASE_REVISION_COLLECTION = os.getenv("FIREBASE_REVISION_COLLECTION", "user_revision_plans")
 
 FIREBASE_DB = None
 FIREBASE_INIT_ERROR = ""
@@ -82,6 +84,7 @@ def ensure_firestore_initialized():
 def serialize_history_doc(doc_id, doc):
     return {
         "id": str(doc_id),
+        "userId": doc.get("userId", ""),
         "kind": doc.get("kind", ""),
         "sourceType": doc.get("sourceType", ""),
         "sources": doc.get("sources", []),
@@ -117,6 +120,42 @@ def serialize_history_doc(doc_id, doc):
         "examWrong": doc.get("examWrong", 0),
         "examNotAttempted": doc.get("examNotAttempted", 0),
         "examSectionStats": doc.get("examSectionStats", {}),
+        "createdAt": doc.get("createdAt", ""),
+        "createdAtEpoch": doc.get("createdAtEpoch", 0),
+        "updatedAt": doc.get("updatedAt", ""),
+        "updatedAtEpoch": doc.get("updatedAtEpoch", 0),
+    }
+
+
+def serialize_user_profile_doc(doc_id, doc):
+    return {
+        "id": str(doc_id),
+        "userId": doc.get("userId", ""),
+        "displayName": doc.get("displayName", ""),
+        "email": doc.get("email", ""),
+        "preferredSubjects": doc.get("preferredSubjects", []),
+        "learningGoals": doc.get("learningGoals", []),
+        "recentActivity": doc.get("recentActivity", []),
+        "weakTopics": doc.get("weakTopics", []),
+        "strengthTopics": doc.get("strengthTopics", []),
+        "sessionStats": doc.get("sessionStats", {}),
+        "revisionPlans": doc.get("revisionPlans", []),
+        "lastSeenAt": doc.get("lastSeenAt", ""),
+        "lastSeenAtEpoch": doc.get("lastSeenAtEpoch", 0),
+        "updatedAt": doc.get("updatedAt", ""),
+        "updatedAtEpoch": doc.get("updatedAtEpoch", 0),
+    }
+
+
+def serialize_revision_plan_doc(doc_id, doc):
+    return {
+        "id": str(doc_id),
+        "userId": doc.get("userId", ""),
+        "planId": doc.get("planId", ""),
+        "name": doc.get("name", ""),
+        "description": doc.get("description", ""),
+        "topics": doc.get("topics", []),
+        "steps": doc.get("steps", []),
         "createdAt": doc.get("createdAt", ""),
         "createdAtEpoch": doc.get("createdAtEpoch", 0),
         "updatedAt": doc.get("updatedAt", ""),
@@ -311,3 +350,118 @@ def load_spaced_plan(user_id, plan_id):
         }, ""
     except Exception:
         return None, "Failed to load spaced plan"
+
+
+def save_user_profile(user_id, profile):
+    db = get_firestore_db()
+    if db is None:
+        return False, FIREBASE_INIT_ERROR or "Firebase is not configured"
+    if not user_id:
+        return False, "userId is required"
+    if not isinstance(profile, dict):
+        return False, "profile must be an object"
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        now_epoch = int(time.time())
+        document = {
+            "userId": str(user_id),
+            "displayName": str(profile.get("displayName", "")).strip(),
+            "email": str(profile.get("email", "")).strip(),
+            "preferredSubjects": profile.get("preferredSubjects") if isinstance(profile.get("preferredSubjects"), list) else [],
+            "learningGoals": profile.get("learningGoals") if isinstance(profile.get("learningGoals"), list) else [],
+            "recentActivity": profile.get("recentActivity") if isinstance(profile.get("recentActivity"), list) else [],
+            "weakTopics": profile.get("weakTopics") if isinstance(profile.get("weakTopics"), list) else [],
+            "strengthTopics": profile.get("strengthTopics") if isinstance(profile.get("strengthTopics"), list) else [],
+            "sessionStats": profile.get("sessionStats") if isinstance(profile.get("sessionStats"), dict) else {},
+            "revisionPlans": profile.get("revisionPlans") if isinstance(profile.get("revisionPlans"), list) else [],
+            "lastSeenAt": str(profile.get("lastSeenAt", "")).strip(),
+            "lastSeenAtEpoch": int(profile.get("lastSeenAtEpoch", 0) or 0),
+            "updatedAt": now_iso,
+            "updatedAtEpoch": now_epoch,
+        }
+        ref = db.collection(FIREBASE_PROFILE_COLLECTION).document(str(user_id))
+        ref.set(document)
+        return True, ""
+    except Exception:
+        return False, "Failed to save user profile"
+
+
+def load_user_profile(user_id):
+    db = get_firestore_db()
+    if db is None:
+        return None, FIREBASE_INIT_ERROR or "Firebase is not configured"
+    if not user_id:
+        return None, "userId is required"
+    try:
+        ref = db.collection(FIREBASE_PROFILE_COLLECTION).document(str(user_id))
+        doc = ref.get()
+        if not doc.exists:
+            return None, ""
+        return serialize_user_profile_doc(doc.id, doc.to_dict() or {}), ""
+    except Exception:
+        return None, "Failed to load user profile"
+
+
+def save_revision_plan(user_id, plan_id, name, description, topics, steps):
+    db = get_firestore_db()
+    if db is None:
+        return False, FIREBASE_INIT_ERROR or "Firebase is not configured"
+    if not user_id or not plan_id:
+        return False, "userId and planId are required"
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        now_epoch = int(time.time())
+        doc_id = f"{user_id}__{plan_id}"
+        document = {
+            "userId": str(user_id),
+            "planId": str(plan_id),
+            "name": str(name).strip(),
+            "description": str(description).strip(),
+            "topics": topics if isinstance(topics, list) else [],
+            "steps": steps if isinstance(steps, list) else [],
+            "createdAt": now_iso,
+            "createdAtEpoch": now_epoch,
+            "updatedAt": now_iso,
+            "updatedAtEpoch": now_epoch,
+        }
+        ref = db.collection(FIREBASE_REVISION_COLLECTION).document(doc_id)
+        ref.set(document)
+        return True, ""
+    except Exception:
+        return False, "Failed to save revision plan"
+
+
+def load_revision_plan(user_id, plan_id):
+    db = get_firestore_db()
+    if db is None:
+        return None, FIREBASE_INIT_ERROR or "Firebase is not configured"
+    if not user_id or not plan_id:
+        return None, "userId and planId are required"
+    try:
+        doc_id = f"{user_id}__{plan_id}"
+        ref = db.collection(FIREBASE_REVISION_COLLECTION).document(doc_id)
+        doc = ref.get()
+        if not doc.exists:
+            return None, ""
+        return serialize_revision_plan_doc(doc.id, doc.to_dict() or {}), ""
+    except Exception:
+        return None, "Failed to load revision plan"
+
+
+def list_revision_plans(user_id):
+    db = get_firestore_db()
+    if db is None:
+        return [], FIREBASE_INIT_ERROR or "Firebase is not configured"
+    if not user_id:
+        return [], "userId is required"
+    try:
+        docs = (
+            db.collection(FIREBASE_REVISION_COLLECTION)
+            .where("userId", "==", str(user_id))
+            .order_by("updatedAtEpoch", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+        items = [serialize_revision_plan_doc(doc.id, doc.to_dict() or {}) for doc in docs]
+        return items, ""
+    except Exception:
+        return [], "Failed to list revision plans"
