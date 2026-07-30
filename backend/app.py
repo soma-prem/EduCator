@@ -41,6 +41,7 @@ from routes.voice_tutor import router as voice_tutor_router  # noqa: E402
 from routes.exam import router as exam_router  # noqa: E402
 from routes.youtube import router as youtube_router  # noqa: E402
 from routes.billing import router as billing_router  # noqa: E402
+from routes.system import router as system_router  # noqa: E402
 
 app = FastAPI(title="EduCator Backend")
 
@@ -72,6 +73,16 @@ app.include_router(voice_tutor_router)
 app.include_router(exam_router)
 app.include_router(youtube_router)
 app.include_router(billing_router)
+app.include_router(system_router)
+
+from services.llm.factory import verify_provider_startup
+
+startup_warnings = verify_provider_startup()
+for warning in startup_warnings:
+    import logging
+
+    logger = logging.getLogger("services.llm.startup")
+    logger.warning(warning)
 
 if __name__ == "__main__":
     import uvicorn

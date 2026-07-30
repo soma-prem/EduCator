@@ -29,6 +29,15 @@ class LlmProviderFactoryTests(unittest.TestCase):
 
         self.assertEqual(provider.__class__.__name__, "OllamaProvider")
 
+    def test_factory_respects_fallback_provider(self):
+        from services.llm.factory import create_provider
+
+        with patch.dict(os.environ, {"LLM_PROVIDER": "ollama", "FALLBACK_PROVIDER": "gemini", "OLLAMA_MODEL": "gemma3"}, clear=False):
+            provider = create_provider()
+
+        self.assertEqual(provider.primary.name, "ollama")
+        self.assertEqual(provider.fallback.name, "gemini")
+
 
 if __name__ == "__main__":
     unittest.main()

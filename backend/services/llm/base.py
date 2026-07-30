@@ -25,3 +25,6 @@ class BaseLLMProvider(ABC):
     @abstractmethod
     def get_model_name(self) -> str:
         raise NotImplementedError
+
+    def format_prompt(self, prompt: str, response_mime_type: str = "application/json") -> str:
+        return str(prompt or "").strip()
