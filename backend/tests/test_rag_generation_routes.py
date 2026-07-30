@@ -19,6 +19,8 @@ class RagGenerationRouteTests(unittest.IsolatedAsyncioTestCase):
             return "source text", {"difficulty": "medium"}
 
         with patch.object(generate_routes, "get_source_text_from_request", side_effect=fake_get_source_text_from_request), patch.object(
+            generate_routes, "_get_cached_generation_payload", return_value=None
+        ), patch.object(generate_routes, "_set_cached_generation_payload", return_value=None), patch.object(
             generate_routes, "generate_summary_from_rag", return_value=({"summary": "RAG summary"}, {"feature": "summary"})
         ) as mock_generate_summary:
             response = await generate_routes.generate_summary(object())

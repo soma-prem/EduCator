@@ -5,6 +5,7 @@ import time
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
+from services.llm.factory import create_provider
 from utils.mcq_utils import extract_json_array, extract_json_object
 
 
@@ -61,69 +62,8 @@ def _trim_source_text(source_text):
 
 
 def call_gemini(prompt, max_output_tokens=GEMINI_MAX_TOKENS, response_mime_type="application/json", api_key=None):
-    key = str(api_key or GEMINI_API_KEY or "").strip()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY is missing in backend environment")
-
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-        f"?key={key}"
-    )
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": max_output_tokens,
-            "responseMimeType": response_mime_type,
-        },
-    }
-    payload_bytes = json.dumps(payload).encode("utf-8")
-
-    last_error = None
-    tried_global_fallback = False
-    for attempt in range(GEMINI_MAX_RETRIES + 1):
-        req = urlrequest.Request(
-            endpoint,
-            data=payload_bytes,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urlrequest.urlopen(req, timeout=GEMINI_TIMEOUT_SECONDS) as response:
-                return response.read().decode("utf-8")
-        except urlerror.HTTPError as exc:
-            error_body = exc.read().decode("utf-8", errors="ignore")
-            last_error = f"Gemini HTTP {exc.code}: {error_body}"
-
-            # If a per-tool key hits free-tier quota, try the global GEMINI_API_KEY as a fallback once.
-            if exc.code == 429 and re.search(r"quota", error_body, flags=re.IGNORECASE):
-                # If we tried a specific key and there is a different global key available, attempt it once.
-                global_key = str(GEMINI_API_KEY or "").strip()
-                if global_key and global_key != key and not tried_global_fallback:
-                    tried_global_fallback = True
-                    key = global_key
-                    endpoint = (
-                        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-                        f"?key={key}"
-                    )
-                    # retry immediately with the global key
-                    continue
-                # If fallback not available or already tried, surface a clear message.
-                raise RuntimeError(
-                    "Gemini quota exceeded on provided key. Wait for quota reset or use a paid key."
-                ) from exc
-
-            if exc.code == 429 and attempt < GEMINI_MAX_RETRIES:
-                retry_after = 1.5
-                retry_match = re.search(r"retry in ([0-9.]+)s", error_body, flags=re.IGNORECASE)
-                if retry_match:
-                    retry_after = float(retry_match.group(1))
-                time.sleep(max(1.0, retry_after))
-                continue
-
-            raise RuntimeError(last_error) from exc
-
-    raise RuntimeError(last_error or "Gemini request failed")
+    provider = create_provider()
+    return provider.generate(prompt, max_output_tokens=max_output_tokens, response_mime_type=response_mime_type)
 
 
 def generate_items_from_source(source_text, instruction, expected_count=10, api_key=None):

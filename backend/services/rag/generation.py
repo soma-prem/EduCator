@@ -1,9 +1,10 @@
+import json
 import logging
 import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from services.gemini_service import answer_question_from_source, call_gemini
+from services.llm.factory import create_provider
 from services.rag.parser import parse_flashcards, parse_fill_blanks, parse_json, parse_mcqs, parse_true_false
 from services.rag.prompts import (
     FILL_BLANK_PROMPT_TEMPLATE,
@@ -62,8 +63,9 @@ def _prompt_text(feature: str, context: str, question: Optional[str] = None) -> 
     raise ValueError(f"Unsupported feature: {feature}")
 
 
-def _call_gemini(prompt: str, feature: str, max_output_tokens: int = 1200) -> str:
-    response = call_gemini(prompt, max_output_tokens=max_output_tokens, response_mime_type="application/json")
+def _call_llm(prompt: str, feature: str, max_output_tokens: int = 1200) -> str:
+    provider = create_provider()
+    response = provider.generate(prompt, max_output_tokens=max_output_tokens, response_mime_type="application/json")
     data = parse_json(response)
     if isinstance(data, dict):
         return str(data.get("text") or "")
@@ -135,11 +137,16 @@ def _run_generation(
     llm_started = time.perf_counter()
     try:
         if feature == "qa":
-            llm_output = answer_question_from_source(context, question or "")
+            provider = create_provider()
+            llm_output = provider.generate(
+                QA_PROMPT_TEMPLATE.format(context=context, question=question or ""),
+                max_output_tokens=900,
+                response_mime_type="text/plain",
+            )
         else:
-            llm_output = _call_gemini(prompt, feature)
+            llm_output = _call_llm(prompt, feature)
     except Exception as exc:
-        logger.exception("Gemini generation failed for feature=%s", feature)
+        logger.exception("LLM generation failed for feature=%s", feature)
         return (
             None,
             {
